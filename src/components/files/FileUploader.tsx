@@ -13,7 +13,7 @@ interface FileUploaderProps {
 }
 
 export default function FileUploader({ folderId, onSuccess }: FileUploaderProps) {
-  const { upload, uploading, progress } = useFileUpload(folderId);
+  const { upload, uploading, progress, converting } = useFileUpload(folderId);
   const [fileToImport, setFileToImport] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
@@ -72,8 +72,8 @@ export default function FileUploader({ folderId, onSuccess }: FileUploaderProps)
           </motion.div>
 
           <AnimatePresence>
-            {uploading ? (
-              <UploadProgress progress={progress} />
+            {uploading || converting ? (
+              <UploadProgress progress={progress} isConverting={converting} />
             ) : (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -84,13 +84,13 @@ export default function FileUploader({ folderId, onSuccess }: FileUploaderProps)
                   {isDragActive ? 'Déposez ici' : 'Importer'}
                 </Button>
                 <p className="mt-1 md:mt-2 text-xs md:text-sm text-gray-500 hidden md:block">
-                  PDF, Images (JPG, PNG), Documents (DOC, DOCX)
+                  PDF, Images (JPG, PNG - converties en PDF), Documents (DOC, DOCX)
                 </p>
                 <p className="text-xs md:text-sm text-gray-500 hidden md:block">
                   Taille maximale : 100 MB
                 </p>
                 <p className="mt-1 text-xs text-gray-500 md:hidden">
-                  PDF, Images, Documents (max. 100MB)
+                  PDF, Images → PDF, Docs (max. 100MB)
                 </p>
               </motion.div>
             )}

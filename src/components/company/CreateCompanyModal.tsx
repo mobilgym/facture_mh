@@ -49,9 +49,9 @@ export default function CreateCompanyModal({ isOpen, onClose, onSuccess }: Creat
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 className="text-xl font-semibold mb-4">Créer une nouvelle société</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-md mx-auto">
+        <h2 className="text-lg md:text-xl font-semibold mb-4">Créer une nouvelle société</h2>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
@@ -75,18 +75,20 @@ export default function CreateCompanyModal({ isOpen, onClose, onSuccess }: Creat
             />
           </div>
 
-          <div className="flex justify-end space-x-3">
+          <div className="flex flex-col sm:flex-row justify-end gap-3 sm:space-x-3 sm:space-y-0">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={loading}
+              className="w-full sm:w-auto order-2 sm:order-1"
             >
               Annuler
             </Button>
             <Button
               type="submit"
               disabled={loading}
+              className="w-full sm:w-auto order-1 sm:order-2"
             >
               {loading ? 'Création...' : 'Créer'}
             </Button>

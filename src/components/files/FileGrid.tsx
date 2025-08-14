@@ -111,7 +111,7 @@ export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile 
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4"
       >
         <AnimatePresence>
           {availableFiles.map((file) => (
@@ -120,18 +120,18 @@ export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile 
               variants={item}
               layoutId={file.id}
               whileHover={{ scale: 1.02, y: -4 }}
-              className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-100"
+              className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-100 min-h-[180px] md:min-h-[200px]"
             >
               <div className="flex flex-col h-full">
                 {/* En-tête avec le nom de la facture */}
-                <div className="p-4 border-b border-gray-100 bg-white">
+                <div className="p-3 md:p-4 border-b border-gray-100 bg-white">
                   {/* Titre avec icône */}
-                  <div className="flex items-center space-x-3 mb-3">
-                      <div className="p-2 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg">
-                        <FileText className="h-5 w-5 text-cyan-600" />
+                  <div className="flex items-center space-x-2 md:space-x-3 mb-2 md:mb-3">
+                      <div className="p-1.5 md:p-2 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg">
+                        <FileText className="h-4 w-4 md:h-5 md:w-5 text-cyan-600" />
                       </div>
                     <h3 
-                      className="font-medium text-gray-900 break-words leading-tight flex-1 cursor-pointer hover:text-cyan-600 transition-colors"
+                      className="font-medium text-gray-900 break-words leading-tight flex-1 cursor-pointer hover:text-cyan-600 transition-colors text-sm md:text-base line-clamp-2"
                       title={file.name}
                       onClick={() => window.open(file.url, '_blank')}
                     >
@@ -149,7 +149,7 @@ export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile 
                 </div>
 
                 {/* Corps avec les métadonnées */}
-                <div className="p-4 space-y-3">
+                <div className="p-3 md:p-4 space-y-2 md:space-y-3">
                   <div className="bg-gray-50 rounded-lg p-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
@@ -162,7 +162,7 @@ export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile 
                             type="date"
                             value={editing.value}
                             onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                            className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                            className="text-xs md:text-sm border border-gray-300 rounded px-1 md:px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white w-20 md:w-auto"
                             autoFocus
                           />
                           <Button
@@ -184,8 +184,8 @@ export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile 
                           </Button>
                         </div>
                       ) : (
-                        <div className="flex items-center space-x-2 group">
-                          <span className="text-sm text-gray-600">
+                        <div className="flex items-center space-x-1 md:space-x-2 group">
+                          <span className="text-xs md:text-sm text-gray-600">
                             {formatDate(file.document_date)}
                           </span>
                           {onUpdateFile && (
@@ -222,7 +222,7 @@ export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile 
                             step="0.01"
                             value={editing.value}
                             onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                            className="w-20 text-sm border border-cyan-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-cyan-500 bg-white"
+                            className="w-16 md:w-20 text-xs md:text-sm border border-cyan-300 rounded px-1 md:px-2 py-1 focus:outline-none focus:ring-1 focus:ring-cyan-500 bg-white"
                             autoFocus
                           />
                           <Button
@@ -244,8 +244,8 @@ export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile 
                           </Button>
                         </div>
                       ) : (
-                        <div className="flex items-center space-x-2 group">
-                      <span className="font-semibold">
+                        <div className="flex items-center space-x-1 md:space-x-2 group">
+                      <span className="font-semibold text-xs md:text-sm">
                             {file.amount ? formatAmount(file.amount) : 'N/A'}
                       </span>
                           {onUpdateFile && (

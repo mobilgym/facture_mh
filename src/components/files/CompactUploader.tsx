@@ -12,7 +12,7 @@ interface CompactUploaderProps {
 }
 
 export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
-  const { upload, uploading, progress } = useFileUpload(null);
+  const { upload, uploading, progress, converting } = useFileUpload(null);
   const [fileToImport, setFileToImport] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
@@ -82,8 +82,8 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
           </motion.div>
 
           <AnimatePresence>
-            {uploading ? (
-              <UploadProgress progress={progress} />
+            {uploading || converting ? (
+              <UploadProgress progress={progress} isConverting={converting} />
             ) : (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -95,7 +95,7 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
                   {isDragActive ? 'Déposer' : 'Importer'}
                 </Button>
                 <p className="mt-1 text-xs text-gray-500">
-                  PDF, Images, Docs
+                  PDF, Images→PDF, Docs
                 </p>
               </motion.div>
             )}

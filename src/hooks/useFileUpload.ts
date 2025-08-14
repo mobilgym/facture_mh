@@ -3,10 +3,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/contexts/CompanyContext';
 import { uploadFile } from '@/lib/services/uploadService';
 import { UploadError } from '@/lib/errors/upload';
+import { processFileForUpload, isImageFile } from '@/lib/utils/imageConverter';
 
 export function useFileUpload(folderId: string | null = null) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [converting, setConverting] = useState(false);
   const { user } = useAuth();
   const { selectedCompany } = useCompany();
 
@@ -23,12 +25,41 @@ export function useFileUpload(folderId: string | null = null) {
     setProgress(0);
 
     try {
+      let processedFile = file;
+      let processedFileName = fileName;
+
+      // Vérifier si c'est une image et la convertir en PDF si nécessaire
+      if (isImageFile(file)) {
+        console.log(`Conversion de l'image ${file.name} en PDF...`);
+        setConverting(true);
+        
+        try {
+          // Convertir l'image en PDF avec une qualité élevée (0.9)
+          processedFile = await processFileForUpload(file, 0.9);
+          
+          // Mettre à jour le nom du fichier pour qu'il ait l'extension .pdf
+          if (!processedFileName.toLowerCase().endsWith('.pdf')) {
+            const nameWithoutExtension = processedFileName.replace(/\.[^/.]+$/, '');
+            processedFileName = `${nameWithoutExtension}.pdf`;
+          }
+          
+          console.log(`Image convertie avec succès: ${processedFile.name}`);
+        } catch (conversionError) {
+          console.error('Erreur lors de la conversion:', conversionError);
+          throw new UploadError(
+            `Impossible de convertir l'image en PDF: ${conversionError instanceof Error ? conversionError.message : 'Erreur inconnue'}`
+          );
+        } finally {
+          setConverting(false);
+        }
+      }
+
       const year = date.getFullYear().toString();
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
 
       const result = await uploadFile({
-        file,
-        fileName,
+        file: processedFile,
+        fileName: processedFileName,
         date,
         year,
         month,
@@ -45,9 +76,10 @@ export function useFileUpload(folderId: string | null = null) {
       throw error;
     } finally {
       setUploading(false);
+      setConverting(false);
       setProgress(0);
     }
   };
 
-  return { upload, uploading, progress };
+  return { upload, uploading, progress, converting };
 }

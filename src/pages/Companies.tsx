@@ -11,22 +11,22 @@ export default function Companies() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 md:py-8">
         <div className="bg-white rounded-lg shadow">
-          <div className="p-4 border-b flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">
+          <div className="p-3 md:p-4 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">
               Gestion des sociétés
             </h1>
             <Button
               onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center"
+              className="flex items-center w-full sm:w-auto justify-center"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Nouvelle société
+              <span className="sm:inline">Nouvelle société</span>
             </Button>
           </div>
           
-          <div className="p-4">
+          <div className="p-3 md:p-4">
             <CompanyList />
           </div>
         </div>

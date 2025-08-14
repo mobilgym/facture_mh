@@ -15,7 +15,8 @@ import {
   FileText,
   Receipt,
   Eye,
-  Plus
+  Plus,
+  Menu
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import FileGrid from '@/components/files/FileGrid';
@@ -43,6 +44,7 @@ interface QuickStats {
 
 export default function ModernDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [contentType, setContentType] = useState<ContentType>('overview');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchTerm, setSearchTerm] = useState('');
@@ -162,11 +164,26 @@ export default function ModernDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="flex">
+        {/* Mobile Overlay */}
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+
         {/* Collapsible Sidebar */}
         <motion.aside
           initial={{ width: 280 }}
           animate={{ width: sidebarCollapsed ? 64 : 280 }}
-          className="bg-white shadow-lg border-r border-gray-200 flex flex-col"
+          className={`bg-white shadow-lg border-r border-gray-200 flex flex-col ${
+            mobileMenuOpen 
+              ? 'fixed inset-y-0 left-0 z-50 w-80 lg:relative lg:w-auto' 
+              : 'hidden lg:flex'
+          }`}
         >
           {/* Sidebar Header */}
           <div className="p-4 border-b border-gray-200">
@@ -263,6 +280,14 @@ export default function ModernDashboard() {
           {/* Top Navigation Bar */}
           <header className="bg-white shadow-sm border-b border-gray-200 p-4">
             <div className="flex items-center justify-between">
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="lg:hidden p-2 rounded-md text-gray-600 hover:text-cyan-600 hover:bg-gray-50"
+              >
+                <Menu className="h-6 w-6" />
+              </button>
+
               {/* Breadcrumb + Title */}
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -277,8 +302,8 @@ export default function ModernDashboard() {
                   )}
                 </div>
                 
-                {/* Content Type Tabs */}
-                <div className="flex bg-gray-100 rounded-lg p-1">
+                {/* Content Type Tabs - Hidden on small screens */}
+                <div className="hidden sm:flex bg-gray-100 rounded-lg p-1">
                   <button
                     onClick={() => setContentType('overview')}
                     className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
@@ -300,11 +325,23 @@ export default function ModernDashboard() {
                     Factures ({filteredCurrentFiles.length})
                   </button>
                 </div>
+
+                {/* Mobile Content Type Selector */}
+                <div className="sm:hidden">
+                  <select
+                    value={contentType}
+                    onChange={(e) => setContentType(e.target.value as ContentType)}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  >
+                    <option value="overview">Vue d'ensemble</option>
+                    <option value="files">Factures ({filteredCurrentFiles.length})</option>
+                  </select>
+                </div>
               </div>
 
               {/* View Controls */}
-              <div className="flex items-center space-x-3">
-                {/* Search */}
+              <div className="flex items-center space-x-2 md:space-x-3">
+                {/* Search - Responsive */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
@@ -312,13 +349,13 @@ export default function ModernDashboard() {
                     placeholder="Rechercher..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-32 sm:w-48 md:w-auto pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
                   />
                 </div>
 
-                {/* View Mode Toggle */}
+                {/* View Mode Toggle - Hidden on small screens */}
                 {(contentType === 'files' || contentType === 'overview') && (
-                  <div className="flex bg-gray-100 rounded-lg">
+                  <div className="hidden sm:flex bg-gray-100 rounded-lg">
                     <button
                       onClick={() => setViewMode('grid')}
                       className={`p-2 rounded-l-lg ${
@@ -342,7 +379,7 @@ export default function ModernDashboard() {
           </header>
 
           {/* Content Area */}
-          <main className="flex-1 p-6 overflow-y-auto">
+          <main className="flex-1 p-3 md:p-6 overflow-y-auto">
             <AnimatePresence mode="wait">
               {contentType === 'overview' && (
                 <motion.div
@@ -350,10 +387,10 @@ export default function ModernDashboard() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="space-y-6"
+                  className="space-y-4 md:space-y-6"
                 >
                   {/* Quick Stats */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
                     <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-200">
                       <div className="flex items-center justify-between">
                         <div>
@@ -451,24 +488,24 @@ export default function ModernDashboard() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="space-y-6"
-                >
-                  {selectedPeriod.year && selectedPeriod.month ? (
-                    <FileGrid
-                      files={filteredCurrentFiles}
-                      onDelete={handleFileDelete}
-                      onUpdate={refetchFiles}
-                      onUpdateFile={handleFileUpdate}
-                    />
-                  ) : (
-                    <div className="text-center py-12">
-                      <Receipt className="mx-auto h-12 w-12 text-gray-400" />
-                      <h3 className="mt-2 text-sm font-medium text-gray-900">Sélectionnez une période</h3>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Choisissez une année et un mois dans la sidebar pour voir les factures.
-                      </p>
-                    </div>
-                  )}
+                                          className="space-y-4 md:space-y-6"
+                      >
+                        {selectedPeriod.year && selectedPeriod.month ? (
+                          <FileGrid
+                            files={filteredCurrentFiles}
+                            onDelete={handleFileDelete}
+                            onUpdate={refetchFiles}
+                            onUpdateFile={handleFileUpdate}
+                          />
+                        ) : (
+                          <div className="text-center py-8 md:py-12">
+                            <Receipt className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400" />
+                            <h3 className="mt-2 text-sm font-medium text-gray-900">Sélectionnez une période</h3>
+                            <p className="mt-1 text-sm text-gray-500 px-4">
+                              Choisissez une année et un mois dans le menu pour voir les factures.
+                            </p>
+                          </div>
+                        )}
                 </motion.div>
               )}
 

@@ -25,16 +25,16 @@ export default function Header() {
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+        <div className="flex items-center justify-between h-14 md:h-16">
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2">
               <div className="relative">
-                <Layers className="h-8 w-8 text-transparent bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text" />
+                <Layers className="h-6 w-6 md:h-8 md:w-8 text-transparent bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text" />
                 <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-lg opacity-20 blur-sm"></div>
               </div>
-              <span className="text-xl font-bold text-gray-900">MGHV</span>
+              <span className="text-lg md:text-xl font-bold text-gray-900">MGHV</span>
             </Link>
           </div>
 
@@ -101,7 +101,7 @@ export default function Header() {
 
         {/* Mobile Menu */}
         {isMenuOpen && user && (
-          <div className="md:hidden border-t border-gray-200">
+          <div className="md:hidden border-t border-gray-200 bg-white">
             <div className="py-2 space-y-1">
               {menuItems.map(({ path, icon: Icon, label }) => (
                 <Link
