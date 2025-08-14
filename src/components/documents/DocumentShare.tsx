@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Share2, Copy, Mail, Download } from 'lucide-react';
+import { Share2, Copy, Mail } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import type { FileItem } from '@/types/file';
 
@@ -26,17 +26,6 @@ export default function DocumentShare({ files, onClose }: DocumentShareProps) {
       files.map(file => `${file.name}: ${file.url}`).join('\n')
     );
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
-  };
-
-  const handleDownloadAll = () => {
-    files.forEach(file => {
-      const link = document.createElement('a');
-      link.href = file.url;
-      link.download = file.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    });
   };
 
   return (
@@ -70,13 +59,6 @@ export default function DocumentShare({ files, onClose }: DocumentShareProps) {
               >
                 <Mail className="h-4 w-4 mr-3" />
                 Partager par email
-              </button>
-              <button
-                onClick={handleDownloadAll}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                <Download className="h-4 w-4 mr-3" />
-                Tout télécharger
               </button>
             </div>
           </div>

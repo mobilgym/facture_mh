@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, Download, Trash2 } from 'lucide-react';
+import { Eye, Trash2 } from 'lucide-react';
 import { checkFileAvailability } from '@/lib/services/fileAvailabilityService';
 import type { FileItem } from '@/types/file';
 
@@ -49,20 +49,6 @@ export default function FileActions({ file, onDelete }: FileActionsProps) {
         title="Visualiser"
       >
         <Eye className="h-4 w-4" />
-      </button>
-      
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          const link = document.createElement('a');
-          link.href = file.url;
-          link.download = file.name;
-          link.click();
-        }}
-        className="p-2 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 hover:text-green-700 border border-green-200 hover:border-green-300 transition-all duration-200 hover:scale-105"
-        title="Télécharger"
-      >
-        <Download className="h-4 w-4" />
       </button>
 
       <button
