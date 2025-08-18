@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatDate } from '@/lib/utils/date';
 import { formatAmount } from '@/lib/utils/currency';
 import { checkFileAvailability } from '@/lib/services/fileAvailabilityService';
-import { FileText, Calendar, EuroIcon, Edit3, Save, X } from 'lucide-react';
+import { FileText, Calendar, EuroIcon, Edit3, Save, X, Settings, Wallet } from 'lucide-react';
 import FileActions from './FileActions';
 import FileTotal from './FileTotal';
+import { FileEditModal } from './FileEditModal';
 import Button from '@/components/ui/Button';
 import type { FileItem } from '@/types/file';
 
@@ -27,6 +28,8 @@ export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile 
   const [availableFiles, setAvailableFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<EditingState | null>(null);
+  const [editingFile, setEditingFile] = useState<FileItem | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     const checkFiles = async () => {
@@ -82,6 +85,24 @@ export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile 
     setEditing(null);
   };
 
+  const handleFileClick = (file: FileItem) => {
+    setEditingFile(file);
+    setShowEditModal(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setShowEditModal(false);
+    setEditingFile(null);
+  };
+
+  const handleFileUpdated = () => {
+    onUpdate();
+  };
+
+  const handleFileDeleted = () => {
+    onUpdate();
+  };
+
   const container = {
     hidden: { opacity: 0 },
     show: {
@@ -120,31 +141,42 @@ export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile 
               variants={item}
               layoutId={file.id}
               whileHover={{ scale: 1.02, y: -4 }}
-              className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-100 min-h-[180px] md:min-h-[200px]"
+              className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-100 min-h-[180px] md:min-h-[200px] cursor-pointer"
+              onClick={() => handleFileClick(file)}
             >
               <div className="flex flex-col h-full">
                 {/* En-tête avec le nom de la facture */}
                 <div className="p-3 md:p-4 border-b border-gray-100 bg-white">
                   {/* Titre avec icône */}
                   <div className="flex items-center space-x-2 md:space-x-3 mb-2 md:mb-3">
-                      <div className="p-1.5 md:p-2 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg">
-                        <FileText className="h-4 w-4 md:h-5 md:w-5 text-cyan-600" />
+                      <div className="relative">
+                        <div className="p-1.5 md:p-2 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg">
+                          <FileText className="h-4 w-4 md:h-5 md:w-5 text-cyan-600" />
+                        </div>
+                        {file.budget_id && (
+                          <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 shadow-sm">
+                            <Wallet className="h-2.5 w-2.5 text-white" />
+                          </div>
+                        )}
                       </div>
                     <h3 
                       className="font-medium text-gray-900 break-words leading-tight flex-1 cursor-pointer hover:text-cyan-600 transition-colors text-sm md:text-base line-clamp-2"
                       title={file.name}
-                      onClick={() => window.open(file.url, '_blank')}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(file.url, '_blank');
+                      }}
                     >
                         {file.name}
                       </h3>
                     </div>
                   
                   {/* Boutons d'action séparés */}
-                  <div className="flex justify-end pt-2 border-t border-gray-50">
-                      <FileActions
-                        file={file}
-                        onDelete={() => setSelectedFile(file)}
-                      />
+                  <div className="flex justify-end items-center pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
+                    <FileActions
+                      file={file}
+                      onDelete={() => setSelectedFile(file)}
+                    />
                   </div>
                 </div>
 
@@ -271,6 +303,17 @@ export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile 
       </motion.div>
 
       <FileTotal files={availableFiles} />
+
+      {/* Modal d'édition */}
+      {showEditModal && editingFile && (
+        <FileEditModal
+          file={editingFile}
+          isOpen={showEditModal}
+          onClose={handleCloseEditModal}
+          onFileUpdated={handleFileUpdated}
+          onFileDeleted={handleFileDeleted}
+        />
+      )}
     </>
   );
 }

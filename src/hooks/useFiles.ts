@@ -42,11 +42,26 @@ export function useFiles({ folderId, year, month }: UseFilesOptions = {}) {
         query = query.eq('month', month);
       }
       
-      const { data, error: err } = await query.order('created_at', { ascending: false });
+      const { data, error: err } = await query.order('document_date', { ascending: false });
       
       if (err) throw err;
       
-      setFiles(data || []);
+      // Filtrer et trier les fichiers
+      const validFiles = (data || []).map(file => {
+        // Si document_date est null ou invalide, utiliser created_at
+        if (!file.document_date) {
+          const createdDate = new Date(file.created_at);
+          return {
+            ...file,
+            document_date: createdDate.toISOString(),
+            year: createdDate.getFullYear().toString(),
+            month: (createdDate.getMonth() + 1).toString().padStart(2, '0')
+          };
+        }
+        return file;
+      });
+      
+      setFiles(validFiles);
       setError(null);
     } catch (err) {
       console.error('Error fetching files:', err);

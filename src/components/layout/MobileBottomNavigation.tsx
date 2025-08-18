@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Home, Building2, FolderOpen } from 'lucide-react';
+import { Home, Building2, FolderOpen, BarChart3, DollarSign } from 'lucide-react';
 
 export default function MobileBottomNavigation() {
   const location = useLocation();
@@ -10,6 +10,8 @@ export default function MobileBottomNavigation() {
   const menuItems = [
     { path: '/', icon: Home, label: 'Accueil' },
     { path: '/companies', icon: Building2, label: 'Sociétés' },
+    { path: '/budgets', icon: BarChart3, label: 'Budgets' },
+    { path: '/expenses', icon: DollarSign, label: 'Dépenses' }
   ];
 
   return (

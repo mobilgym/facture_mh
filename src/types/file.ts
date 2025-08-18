@@ -13,4 +13,6 @@ export interface FileItem {
   amount?: number | null;
   year: string;
   month: string;
+  budget_id?: string | null;
+  expense_category_id?: string | null;
 }

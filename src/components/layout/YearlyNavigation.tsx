@@ -196,7 +196,20 @@ export default function YearlyNavigation({ periodsData, selectedPeriod, onPeriod
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-4 w-4 text-gray-400" />
                             <span className="font-medium text-sm text-gray-900">
-                              {format(new Date(parseInt(period.year), parseInt(period.month) - 1), 'MMMM', { locale: fr })}
+                              {(() => {
+                                try {
+                                  const year = parseInt(period.year);
+                                  const month = parseInt(period.month) - 1;
+                                  if (isNaN(year) || isNaN(month) || month < 0 || month > 11) {
+                                    console.error('Invalid date values:', { year: period.year, month: period.month });
+                                    return 'Date invalide';
+                                  }
+                                  return format(new Date(year, month), 'MMMM', { locale: fr });
+                                } catch (error) {
+                                  console.error('Error formatting date:', error);
+                                  return 'Date invalide';
+                                }
+                              })()}
                             </span>
                           </div>
                           {isPeriodSelected && (

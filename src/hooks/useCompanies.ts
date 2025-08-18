@@ -15,13 +15,23 @@ export function useCompanies() {
     try {
       setLoading(true);
       const { data, error: err } = await supabase
-        .from('companies')
-        .select('*')
-        .order('name');
+        .from('user_companies')
+        .select(`
+          company:companies (
+            id,
+            name,
+            created_at
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('company(name)');
+
+      // Transformer les données pour n'avoir que les entreprises
+      const transformedData = data?.map(item => item.company) || [];
       
       if (err) throw err;
       
-      setCompanies(data || []);
+      setCompanies(transformedData);
       setError(null);
     } catch (err) {
       console.error('Error fetching companies:', err);
