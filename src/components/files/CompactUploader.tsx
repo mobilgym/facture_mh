@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, Plus } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import FileImportDialog from './FileImportDialog';
+import TypeSelectionDialog, { DocumentType } from './TypeSelectionDialog';
 import UploadProgress from './UploadProgress';
 import { useFileUpload } from '@/hooks/useFileUpload';
 
@@ -14,6 +15,8 @@ interface CompactUploaderProps {
 export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
   const { upload, uploading, progress, converting } = useFileUpload(null);
   const [fileToImport, setFileToImport] = useState<File | null>(null);
+  const [selectedType, setSelectedType] = useState<DocumentType | null>(null);
+  const [showTypeDialog, setShowTypeDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
 
@@ -21,8 +24,20 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
     if (acceptedFiles.length > 0) {
       setError(null);
       setFileToImport(acceptedFiles[0]);
+      setShowTypeDialog(true);
     }
   }, []);
+
+  const handleTypeSelect = (type: DocumentType) => {
+    setSelectedType(type);
+    setShowTypeDialog(false);
+  };
+
+  const handleTypeDialogClose = () => {
+    setShowTypeDialog(false);
+    setFileToImport(null);
+    setSelectedType(null);
+  };
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
@@ -46,10 +61,16 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
     try {
       await upload(fileToImport, fileName, date, amount);
       setFileToImport(null);
+      setSelectedType(null);
       onSuccess();
     } catch (err) {
       setError('Erreur lors de l\'upload');
     }
+  };
+
+  const handleFileDialogClose = () => {
+    setFileToImport(null);
+    setSelectedType(null);
   };
 
   return (
@@ -118,11 +139,18 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
         </AnimatePresence>
       </motion.div>
 
-      {fileToImport && (
+      <TypeSelectionDialog
+        isOpen={showTypeDialog}
+        onClose={handleTypeDialogClose}
+        onSelect={handleTypeSelect}
+      />
+
+      {fileToImport && selectedType && (
         <FileImportDialog
           file={fileToImport}
-          isOpen={!!fileToImport}
-          onClose={() => setFileToImport(null)}
+          documentType={selectedType}
+          isOpen={!!fileToImport && !!selectedType}
+          onClose={handleFileDialogClose}
           onConfirm={handleImportConfirm}
         />
       )}

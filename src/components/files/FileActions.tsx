@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, Download, Trash2 } from 'lucide-react';
+import { Eye, Trash2 } from 'lucide-react';
 import { checkFileAvailability } from '@/lib/services/fileAvailabilityService';
 import type { FileItem } from '@/types/file';
 

@@ -5,6 +5,7 @@ import { Upload, X, FileText, AlertCircle } from 'lucide-react';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import Button from '@/components/ui/Button';
 import DocumentImportDialog from './DocumentImportDialog';
+import TypeSelectionDialog, { DocumentType } from '../files/TypeSelectionDialog';
 import UploadProgress from './UploadProgress';
 
 interface DocumentUploaderProps {
@@ -15,6 +16,8 @@ interface DocumentUploaderProps {
 export default function DocumentUploader({ categoryId, onSuccess }: DocumentUploaderProps) {
   const { upload, uploading, progress } = useFileUpload(categoryId);
   const [fileToImport, setFileToImport] = useState<File | null>(null);
+  const [selectedType, setSelectedType] = useState<DocumentType | null>(null);
+  const [showTypeDialog, setShowTypeDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
 
@@ -22,8 +25,20 @@ export default function DocumentUploader({ categoryId, onSuccess }: DocumentUplo
     if (acceptedFiles.length > 0) {
       setError(null);
       setFileToImport(acceptedFiles[0]);
+      setShowTypeDialog(true);
     }
   }, []);
+
+  const handleTypeSelect = (type: DocumentType) => {
+    setSelectedType(type);
+    setShowTypeDialog(false);
+  };
+
+  const handleTypeDialogClose = () => {
+    setShowTypeDialog(false);
+    setFileToImport(null);
+    setSelectedType(null);
+  };
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
@@ -117,13 +132,21 @@ export default function DocumentUploader({ categoryId, onSuccess }: DocumentUplo
         </AnimatePresence>
       </motion.div>
 
+      <TypeSelectionDialog
+        isOpen={showTypeDialog}
+        onClose={handleTypeDialogClose}
+        onSelect={handleTypeSelect}
+      />
+
       <AnimatePresence>
-        {fileToImport && (
+        {fileToImport && selectedType && (
           <DocumentImportDialog
             file={fileToImport}
+            documentType={selectedType}
             isOpen={true}
             onClose={() => {
               setFileToImport(null);
+              setSelectedType(null);
               setError(null);
             }}
             onConfirm={async (fileName, category, date) => {
@@ -131,6 +154,7 @@ export default function DocumentUploader({ categoryId, onSuccess }: DocumentUplo
                 await upload(fileToImport, fileName, date);
                 onSuccess();
                 setFileToImport(null);
+                setSelectedType(null);
               } catch (err: any) {
                 setError(err.message);
               }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Eye, Download, FileText, Edit3, Save, X, Search } from 'lucide-react';
+import { Eye, FileText, Edit3, Save, X, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import Button from '@/components/ui/Button';
@@ -409,22 +409,6 @@ export default function SubmittedInvoicesList({ invoices, onUpdateInvoice }: Sub
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   Voir
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = invoice.file_url;
-                    link.download = invoice.file_name || 'document';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  }}
-                  className="hover:bg-green-50 hover:text-green-600 hover:border-green-300 transition-all duration-200"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Télécharger
                 </Button>
               </div>
             </div>

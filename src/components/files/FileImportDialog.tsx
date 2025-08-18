@@ -5,16 +5,20 @@ import { useCompany } from '@/contexts/CompanyContext';
 import { useCompanies } from '@/hooks/useCompanies';
 import { isImageFile, getFileTypeDescription } from '@/lib/utils/imageConverter';
 import Button from '@/components/ui/Button';
+import { DocumentType } from './TypeSelectionDialog';
 
 interface FileImportDialogProps {
   file: File;
+  documentType: DocumentType;
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (fileName: string, date: Date, amount: number | null) => void;
 }
 
-export default function FileImportDialog({ file, isOpen, onClose, onConfirm }: FileImportDialogProps) {
-  const [fileName, setFileName] = useState(file.name);
+export default function FileImportDialog({ file, documentType, isOpen, onClose, onConfirm }: FileImportDialogProps) {
+  const [fileName, setFileName] = useState(() => {
+    return documentType === 'achat' ? 'Ach_ .pdf' : 'Vte_ .pdf';
+  });
   const [date, setDate] = useState(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);

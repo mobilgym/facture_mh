@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Calendar, Building2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { categories } from '@/lib/constants/documentCategories';
+import { DocumentType } from '../files/TypeSelectionDialog';
 
 interface DocumentImportDialogProps {
   file: File;
+  documentType: DocumentType;
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (fileName: string, category: string, date: Date) => void;
@@ -12,11 +14,14 @@ interface DocumentImportDialogProps {
 
 export default function DocumentImportDialog({ 
   file, 
+  documentType,
   isOpen, 
   onClose, 
   onConfirm 
 }: DocumentImportDialogProps) {
-  const [fileName, setFileName] = useState(file.name);
+  const [fileName, setFileName] = useState(() => {
+    return documentType === 'achat' ? 'Ach_ .pdf' : 'Vte_ .pdf';
+  });
   const [category, setCategory] = useState('');
   const [date, setDate] = useState(() => {
     const now = new Date();

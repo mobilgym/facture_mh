@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Download, Eye, Receipt } from 'lucide-react';
+import { FileText, Eye, Receipt } from 'lucide-react';
 import { useFiles } from '@/hooks/useFiles';
 import { formatFileSize, formatDate } from '@/lib/utils';
 import Button from '@/components/ui/Button';
@@ -107,20 +107,6 @@ export default function FileList({ folderId, filter }: FileListProps) {
                     title="Visualiser"
                   >
                     <Eye className="h-4 w-4" />
-                  </Button>
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const link = document.createElement('a');
-                      link.href = file.url;
-                      link.download = file.name;
-                      link.click();
-                    }}
-                    title="Télécharger"
-                  >
-                    <Download className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
