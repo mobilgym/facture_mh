@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, DollarSign, Calendar, FileText, Tag, ChevronDown, ChevronRight } from 'lucide-react';
-import type { CreateBudgetForm, BudgetWithStats, ExpenseCategory } from '../../types/budget';
-import { useExpenseCategories } from '../../hooks/useExpenseCategories';
-import { useBudgetExpenseCategories } from '../../hooks/useBudgetExpenseCategories';
-import { BudgetExpenseCategoryService } from '../../lib/services/budgetExpenseCategoryService';
+import type { CreateBudgetForm, BudgetWithStats } from '../../types/budget';
+import type { Badge } from '../../types/badge';
+import { useBadges } from '../../hooks/useBadges';
+import { useBudgetBadges } from '../../hooks/useBudgetBadges';
+import { BadgeService } from '../../lib/services/badgeService';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface BudgetFormProps {
   budget?: BudgetWithStats | null;
-  onSubmit: (data: CreateBudgetForm, categoryIds?: string[]) => Promise<void>;
+  onSubmit: (data: CreateBudgetForm, badgeIds?: string[]) => Promise<void>;
   onClose: () => void;
   isLoading?: boolean;
 }
@@ -21,15 +22,15 @@ export function BudgetForm({ budget, onSubmit, onClose, isLoading = false }: Bud
     start_date: '',
     end_date: ''
   });
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
   const [expandedSections, setExpandedSections] = useState({
     basicInfo: true,
     dates: false,
-    categories: false
+    badges: false
   });
   
-  const { activeCategories } = useExpenseCategories();
-  const { categories: budgetCategories } = useBudgetExpenseCategories(budget?.id);
+  const { activeBadges } = useBadges();
+  const { badges: budgetBadges } = useBudgetBadges(budget?.id);
   const { user } = useAuth();
 
   const [errors, setErrors] = useState<Partial<CreateBudgetForm>>({});
@@ -47,12 +48,12 @@ export function BudgetForm({ budget, onSubmit, onClose, isLoading = false }: Bud
     }
   }, [budget]);
 
-  // Pré-remplir les postes de dépenses sélectionnés
+  // Pré-remplir les badges sélectionnés
   useEffect(() => {
-    if (budgetCategories) {
-      setSelectedCategories(budgetCategories.map(cat => cat.id));
+    if (budgetBadges) {
+      setSelectedBadges(budgetBadges.map(badge => badge.id));
     }
-  }, [budgetCategories]);
+  }, [budgetBadges]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<CreateBudgetForm> = {};
@@ -80,7 +81,7 @@ export function BudgetForm({ budget, onSubmit, onClose, isLoading = false }: Bud
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('🔍 Tentative de soumission du formulaire avec:', formData);
-    console.log('🔍 Postes de dépenses sélectionnés:', selectedCategories);
+    console.log('🔍 Badges sélectionnés:', selectedBadges);
     
     if (!validateForm()) {
       console.log('❌ Validation du formulaire échouée');
@@ -93,16 +94,16 @@ export function BudgetForm({ budget, onSubmit, onClose, isLoading = false }: Bud
         // Mode édition : le hook gère séparément la mise à jour des catégories
         await onSubmit(formData);
         if (user) {
-          console.log('🔄 Mise à jour des postes de dépenses du budget');
-          await BudgetExpenseCategoryService.updateBudgetExpenseCategories(
+          console.log('🔄 Mise à jour des badges du budget');
+          await BadgeService.updateBudgetBadges(
             budget.id,
-            selectedCategories,
+            selectedBadges,
             user.id
           );
         }
       } else {
-        // Mode création : passer les catégories à la fonction de création
-        await onSubmit(formData, selectedCategories);
+        // Mode création : passer les badges à la fonction de création
+        await onSubmit(formData, selectedBadges);
       }
       
       console.log('✅ Soumission réussie, fermeture du formulaire');
@@ -301,50 +302,50 @@ export function BudgetForm({ budget, onSubmit, onClose, isLoading = false }: Bud
             )}
           </div>
 
-          {/* Section 3: Postes de dépenses */}
+          {/* Section 3: Badges autorisés */}
           <div className="border border-gray-200 rounded-lg">
             <button
               type="button"
-              onClick={() => toggleSection('categories')}
+              onClick={() => toggleSection('badges')}
               className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-center">
                 <Tag className="h-5 w-5 text-purple-600 mr-3" />
                 <span className="font-medium text-gray-900">
-                  Postes de dépenses autorisés
-                  {selectedCategories.length > 0 && (
+                  Badges autorisés
+                  {selectedBadges.length > 0 && (
                     <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
-                      {selectedCategories.length} sélectionné{selectedCategories.length > 1 ? 's' : ''}
+                      {selectedBadges.length} sélectionné{selectedBadges.length > 1 ? 's' : ''}
                     </span>
                   )}
                 </span>
               </div>
-              {expandedSections.categories ? (
+              {expandedSections.badges ? (
                 <ChevronDown className="h-5 w-5 text-gray-400" />
               ) : (
                 <ChevronRight className="h-5 w-5 text-gray-400" />
               )}
             </button>
             
-            {expandedSections.categories && (
+            {expandedSections.badges && (
               <div className="p-4 border-t border-gray-200">
                 <p className="text-sm text-gray-600 mb-4">
-                  Sélectionnez les postes de dépenses qui pourront être utilisés avec ce budget.
+                  Sélectionnez les badges qui pourront être utilisés avec ce budget.
                 </p>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {activeCategories.map((category) => (
+                  {activeBadges.map((badge) => (
                     <label
-                      key={category.id}
+                      key={badge.id}
                       className="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                     >
                       <input
                         type="checkbox"
-                        checked={selectedCategories.includes(category.id)}
+                        checked={selectedBadges.includes(badge.id)}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setSelectedCategories(prev => [...prev, category.id]);
+                            setSelectedBadges(prev => [...prev, badge.id]);
                           } else {
-                            setSelectedCategories(prev => prev.filter(id => id !== category.id));
+                            setSelectedBadges(prev => prev.filter(id => id !== badge.id));
                           }
                         }}
                         className="h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
@@ -352,11 +353,11 @@ export function BudgetForm({ budget, onSubmit, onClose, isLoading = false }: Bud
                       <div className="ml-3 flex items-center">
                         <div
                           className="w-3 h-3 rounded-full mr-2"
-                          style={{ backgroundColor: category.color }}
+                          style={{ backgroundColor: badge.color }}
                         />
-                        <span className="text-sm text-gray-900">{category.name}</span>
-                        {category.description && (
-                          <span className="text-xs text-gray-500 ml-2">({category.description})</span>
+                        <span className="text-sm text-gray-900">{badge.name}</span>
+                        {badge.description && (
+                          <span className="text-xs text-gray-500 ml-2">({badge.description})</span>
                         )}
                       </div>
                     </label>

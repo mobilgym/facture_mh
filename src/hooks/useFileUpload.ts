@@ -4,6 +4,7 @@ import { useCompany } from '@/contexts/CompanyContext';
 import { uploadFile } from '@/lib/services/uploadService';
 import { UploadError } from '@/lib/errors/upload';
 import { processFileForUpload, isImageFile } from '@/lib/utils/imageConverter';
+import { BadgeService } from '@/lib/services/badgeService';
 
 export function useFileUpload(folderId: string | null = null) {
   const [uploading, setUploading] = useState(false);
@@ -12,7 +13,14 @@ export function useFileUpload(folderId: string | null = null) {
   const { user } = useAuth();
   const { selectedCompany } = useCompany();
 
-  const upload = async (file: File, fileName: string, date: Date, amount: number | null) => {
+  const upload = async (
+    file: File, 
+    fileName: string, 
+    date: Date, 
+    amount: number | null, 
+    budgetId?: string | null, 
+    badgeIds?: string[]
+  ) => {
     if (!user) {
       throw new UploadError('Utilisateur non authentifié');
     }
@@ -67,8 +75,26 @@ export function useFileUpload(folderId: string | null = null) {
         user,
         company: selectedCompany,
         folderId,
+        budgetId,
+        badgeIds,
         onProgress: (p) => setProgress(p)
       });
+
+      // Si des badges sont sélectionnés, les assigner au fichier uploadé
+      if (result && badgeIds && badgeIds.length > 0 && amount) {
+        console.log('🏷️ Assignation des badges au fichier uploadé:', badgeIds);
+        
+        // Calculer le montant par badge (répartition équitable)
+        const amountPerBadge = amount / badgeIds.length;
+        
+        const badgeAssignments = badgeIds.map(badgeId => ({
+          badgeId,
+          amountAllocated: amountPerBadge
+        }));
+
+        await BadgeService.assignBadgesToFile(result.id, badgeAssignments, user.id);
+        console.log('✅ Badges assignés avec succès au fichier uploadé');
+      }
 
       return result;
     } catch (error) {

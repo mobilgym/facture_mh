@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ExpenseService } from '../lib/services/expenseService';
 import type { 
   ExpenseWithDetails, 
@@ -25,7 +25,7 @@ export function useExpenses(options: UseExpensesOptions = {}) {
   const { selectedCompany } = useCompany();
 
   // Récupérer les dépenses
-  const loadExpenses = async () => {
+  const loadExpenses = useCallback(async () => {
     if (!selectedCompany) return;
     
     try {
@@ -51,7 +51,7 @@ export function useExpenses(options: UseExpensesOptions = {}) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCompany, options.budgetId, options.categoryId, showError]);
 
   // Récupérer les dépenses d'un budget spécifique
   const loadExpensesByBudget = async (budgetId: string): Promise<ExpenseWithDetails[]> => {

@@ -15,6 +15,7 @@ interface FileGridProps {
   onDelete?: (file: FileItem) => Promise<void>;
   onUpdate: () => void;
   onUpdateFile?: (fileId: string, updates: Partial<FileItem>) => Promise<void>;
+  onBudgetExpenseUpdated?: () => void;
 }
 
 interface EditingState {
@@ -23,7 +24,7 @@ interface EditingState {
   value: string;
 }
 
-export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile }: FileGridProps) {
+export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile, onBudgetExpenseUpdated }: FileGridProps) {
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [availableFiles, setAvailableFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -312,6 +313,7 @@ export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile 
           onClose={handleCloseEditModal}
           onFileUpdated={handleFileUpdated}
           onFileDeleted={handleFileDeleted}
+          onBudgetExpenseUpdated={onBudgetExpenseUpdated}
         />
       )}
     </>

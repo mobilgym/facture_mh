@@ -355,4 +355,49 @@ export class BudgetService {
       throw error;
     }
   }
+
+  /**
+   * Recalcule les montants dépensés de tous les budgets d'une entreprise
+   * basé sur le nouveau système de badges
+   */
+  static async recalculateAllBudgetsSpentAmount(companyId: string): Promise<void> {
+    try {
+      console.log('🔄 Recalcul des montants dépensés pour tous les budgets de l\'entreprise:', companyId);
+
+      // Import dynamique pour éviter les dépendances circulaires
+      const { BadgeService } = await import('./badgeService');
+
+      // Récupérer tous les budgets actifs de l'entreprise
+      const { data: budgets, error } = await supabase
+        .from('budgets')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('is_active', true);
+
+      if (error) {
+        throw new Error(`Erreur lors de la récupération des budgets: ${error.message}`);
+      }
+
+      if (!budgets || budgets.length === 0) {
+        console.log('ℹ️ Aucun budget trouvé pour cette entreprise');
+        return;
+      }
+
+      // Recalculer chaque budget
+      let updatedCount = 0;
+      for (const budget of budgets) {
+        try {
+          await BadgeService.recalculateBudgetSpentAmount(budget.id);
+          updatedCount++;
+        } catch (error) {
+          console.error(`❌ Erreur lors du recalcul du budget ${budget.id}:`, error);
+        }
+      }
+
+      console.log(`✅ Recalcul terminé: ${updatedCount}/${budgets.length} budgets mis à jour`);
+    } catch (error) {
+      console.error('❌ Erreur dans recalculateAllBudgetsSpentAmount:', error);
+      throw error;
+    }
+  }
 }

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BudgetService } from '../lib/services/budgetService';
-import { BudgetExpenseCategoryService } from '../lib/services/budgetExpenseCategoryService';
+import { BadgeService } from '../lib/services/badgeService';
 import type { BudgetWithStats, BudgetAlert, CreateBudgetForm, Budget } from '../types/budget';
 import { useToast } from './useToast';
 import { useAuth } from '../contexts/AuthContext';
 import { useCompany } from '../contexts/CompanyContext';
+import { useBudgetNotification } from '../contexts/BudgetNotificationContext';
 
 export function useBudgets() {
   const [budgets, setBudgets] = useState<BudgetWithStats[]>([]);
@@ -13,9 +14,10 @@ export function useBudgets() {
   const { success: showSuccess, error: showError } = useToast();
   const { user } = useAuth();
   const { selectedCompany } = useCompany();
+  const { onBudgetChange } = useBudgetNotification();
 
   // Récupérer les budgets
-  const loadBudgets = async () => {
+  const loadBudgets = useCallback(async () => {
     if (!selectedCompany) return;
     
     try {
@@ -32,14 +34,14 @@ export function useBudgets() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCompany, showError]);
 
   // Créer un budget
-  const createBudget = async (budgetData: CreateBudgetForm, categoryIds?: string[]): Promise<Budget | null> => {
+  const createBudget = async (budgetData: CreateBudgetForm, badgeIds?: string[]): Promise<Budget | null> => {
     if (!selectedCompany || !user) return null;
 
     try {
-      console.log('🔄 Création du budget avec postes de dépenses:', { budgetData, categoryIds });
+      console.log('🔄 Création du budget avec badges:', { budgetData, badgeIds });
       
       const newBudget = await BudgetService.createBudget(
         selectedCompany.id,
@@ -47,12 +49,12 @@ export function useBudgets() {
         budgetData
       );
       
-      // Si des postes de dépenses sont sélectionnés, les assigner au budget
-      if (categoryIds && categoryIds.length > 0 && newBudget) {
-        console.log('🔄 Assignation des postes de dépenses au nouveau budget');
-        await BudgetExpenseCategoryService.updateBudgetExpenseCategories(
+      // Si des badges sont sélectionnés, les assigner au budget
+      if (badgeIds && badgeIds.length > 0 && newBudget) {
+        console.log('🔄 Assignation des badges au nouveau budget');
+        await BadgeService.updateBudgetBadges(
           newBudget.id,
-          categoryIds,
+          badgeIds,
           user.id
         );
       }
@@ -136,8 +138,22 @@ export function useBudgets() {
 
   // Charger les budgets au montage et quand l'entreprise change
   useEffect(() => {
-    loadBudgets();
+    if (selectedCompany) {
+      loadBudgets();
+    }
   }, [selectedCompany]);
+
+  // S'abonner aux notifications de changement de budget pour rafraîchir les données
+  useEffect(() => {
+    if (!selectedCompany) return;
+    
+    const unsubscribe = onBudgetChange(() => {
+      console.log('🔔 useBudgets - Notification reçue, rafraîchissement des budgets');
+      loadBudgets();
+    });
+
+    return unsubscribe;
+  }, [onBudgetChange, selectedCompany]);
 
   return {
     budgets,

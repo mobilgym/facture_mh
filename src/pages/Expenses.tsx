@@ -4,7 +4,7 @@ import { ExpenseCard } from '../components/expenses/ExpenseCard';
 import { ExpenseForm } from '../components/expenses/ExpenseForm';
 import { useExpenses } from '../hooks/useExpenses';
 import { useBudgets } from '../hooks/useBudgets';
-import { useExpenseCategories } from '../hooks/useExpenseCategories';
+import { useBadges } from '../hooks/useBadges';
 import type { ExpenseWithDetails, CreateExpenseForm, ExpenseStatus } from '../types/budget';
 
 type FilterType = 'all' | 'pending' | 'approved' | 'paid' | 'cancelled';
@@ -14,7 +14,7 @@ export function Expenses() {
   const [editingExpense, setEditingExpense] = useState<ExpenseWithDetails | null>(null);
   const [filterStatus, setFilterStatus] = useState<FilterType>('all');
   const [selectedBudget, setSelectedBudget] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedBadge, setSelectedBadge] = useState<string>('');
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
     start: '',
     end: ''
@@ -31,7 +31,7 @@ export function Expenses() {
   } = useExpenses();
 
   const { budgets } = useBudgets();
-  const { activeCategories } = useExpenseCategories();
+  const { activeBadges } = useBadges();
 
   // Filtrer les dépenses
   const filteredExpenses = expenses.filter(expense => {
@@ -45,10 +45,10 @@ export function Expenses() {
       return false;
     }
 
-    // Filtre par catégorie
-    if (selectedCategory && expense.expense_category_id !== selectedCategory) {
-      return false;
-    }
+    // Filtre par badge (temporairement désactivé - à implémenter avec le nouveau système)
+    // if (selectedBadge && expense.badge_ids && !expense.badge_ids.includes(selectedBadge)) {
+    //   return false;
+    // }
 
     // Filtre par date
     if (dateRange.start && expense.expense_date < dateRange.start) {
@@ -228,23 +228,27 @@ export function Expenses() {
                 </select>
               </div>
 
-              {/* Filtre par catégorie */}
+              {/* Filtre par badge */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Poste
+                  Badge
                 </label>
                 <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  value={selectedBadge}
+                  onChange={(e) => setSelectedBadge(e.target.value)}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  disabled
                 >
-                  <option value="">Tous les postes</option>
-                  {activeCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
+                  <option value="">Tous les badges</option>
+                  {activeBadges.map((badge) => (
+                    <option key={badge.id} value={badge.id}>
+                      {badge.name}
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Filtrage temporairement désactivé - Migration en cours
+                </p>
               </div>
 
               {/* Filtre par date */}
@@ -292,13 +296,13 @@ export function Expenses() {
           </div>
 
           {/* Réinitialiser les filtres */}
-          {(filterStatus !== 'all' || selectedBudget || selectedCategory || dateRange.start || dateRange.end) && (
+          {(filterStatus !== 'all' || selectedBudget || selectedBadge || dateRange.start || dateRange.end) && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <button
                 onClick={() => {
                   setFilterStatus('all');
                   setSelectedBudget('');
-                  setSelectedCategory('');
+                  setSelectedBadge('');
                   setDateRange({ start: '', end: '' });
                 }}
                 className="text-sm text-blue-600 hover:text-blue-800"

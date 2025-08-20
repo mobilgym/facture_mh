@@ -72,6 +72,7 @@ export class ExpenseService {
       }
 
       console.log('✅ Dépenses du budget récupérées avec succès:', expenses?.length || 0);
+      console.log('🔍 Détail des dépenses récupérées:', expenses);
       return expenses || [];
     } catch (error) {
       console.error('❌ Erreur dans getExpensesByBudget:', error);

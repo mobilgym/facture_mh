@@ -3,24 +3,25 @@ import { Plus, AlertTriangle, TrendingUp, PieChart, BarChart3 } from 'lucide-rea
 import { BudgetCard } from '../components/budgets/BudgetCard';
 import { BudgetDetails } from '../components/budgets/BudgetDetails';
 import { BudgetForm } from '../components/budgets/BudgetForm';
-import { ExpenseCategoryCard } from '../components/expense-categories/ExpenseCategoryCard';
-import { ExpenseCategoryForm } from '../components/expense-categories/ExpenseCategoryForm';
-import { ExpenseAnalysisTable } from '../components/analysis/ExpenseAnalysisTable';
+import { BadgeCard } from '../components/badges/BadgeCard';
+import { BadgeForm } from '../components/badges/BadgeForm';
+import { BadgeAnalysis } from '../components/analysis/BadgeAnalysis';
 import { useBudgets } from '../hooks/useBudgets';
-import { useExpenseCategories } from '../hooks/useExpenseCategories';
+import { useBadges } from '../hooks/useBadges';
 import { useAuth } from '../contexts/AuthContext';
 import { useCompany } from '../contexts/CompanyContext';
-import type { BudgetWithStats, ExpenseCategoryWithStats, CreateBudgetForm, CreateExpenseCategoryForm } from '../types/budget';
+import type { BudgetWithStats, CreateBudgetForm } from '../types/budget';
+import type { BadgeWithStats, CreateBadgeForm } from '../types/badge';
 
-type TabType = 'budgets' | 'categories' | 'analysis';
+type TabType = 'budgets' | 'badges' | 'analysis';
 
 export function BudgetsAndExpenses() {
   const [activeTab, setActiveTab] = useState<TabType>('budgets');
   const [showBudgetForm, setShowBudgetForm] = useState(false);
-  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [showBadgeForm, setShowBadgeForm] = useState(false);
   const [editingBudget, setEditingBudget] = useState<BudgetWithStats | null>(null);
   const [selectedBudget, setSelectedBudget] = useState<BudgetWithStats | null>(null);
-  const [editingCategory, setEditingCategory] = useState<ExpenseCategoryWithStats | null>(null);
+  const [editingBadge, setEditingBadge] = useState<BadgeWithStats | null>(null);
 
   const { user } = useAuth();
   const { selectedCompany } = useCompany();
@@ -36,18 +37,19 @@ export function BudgetsAndExpenses() {
   } = useBudgets();
 
   const {
-    categories,
-    loading: categoriesLoading,
-    createCategory,
-    updateCategory,
-    archiveCategory,
-    deleteCategory
-  } = useExpenseCategories();
+    badges,
+    loading: badgesLoading,
+    createBadge,
+    updateBadge,
+    archiveBadge,
+    deleteBadge,
+    reactivateBadge
+  } = useBadges();
 
   // Gestion des budgets
-  const handleCreateBudget = async (data: CreateBudgetForm, categoryIds?: string[]) => {
+  const handleCreateBudget = async (data: CreateBudgetForm, badgeIds?: string[]) => {
     console.log('🔍 Tentative de création du budget:', data);
-    console.log('📋 Postes de dépenses sélectionnés:', categoryIds);
+    console.log('🏷️ Badges sélectionnés:', badgeIds);
     console.log('👤 État de l\'utilisateur:', user);
     console.log('🏢 État de l\'entreprise:', selectedCompany);
 
@@ -56,7 +58,7 @@ export function BudgetsAndExpenses() {
       return;
     }
 
-    const newBudget = await createBudget(data, categoryIds);
+    const newBudget = await createBudget(data, badgeIds);
     if (newBudget) {
       console.log('✅ Budget créé avec succès:', newBudget);
       setShowBudgetForm(false);
@@ -70,7 +72,7 @@ export function BudgetsAndExpenses() {
     setShowBudgetForm(true);
   };
 
-  const handleUpdateBudget = async (data: CreateBudgetForm, categoryIds?: string[]) => {
+  const handleUpdateBudget = async (data: CreateBudgetForm, badgeIds?: string[]) => {
     if (editingBudget) {
       await updateBudget(editingBudget.id, data);
       setEditingBudget(null);
@@ -83,28 +85,46 @@ export function BudgetsAndExpenses() {
     setEditingBudget(null);
   };
 
-  // Gestion des postes de dépenses
-  const handleCreateCategory = async (data: CreateExpenseCategoryForm) => {
-    await createCategory(data);
-    setShowCategoryForm(false);
+  // Gestion des badges
+  const handleCreateBadge = async (data: CreateBadgeForm) => {
+    await createBadge(data);
+    setShowBadgeForm(false);
   };
 
-  const handleEditCategory = (category: ExpenseCategoryWithStats) => {
-    setEditingCategory(category);
-    setShowCategoryForm(true);
+  const handleEditBadge = (badge: BadgeWithStats) => {
+    setEditingBadge(badge);
+    setShowBadgeForm(true);
   };
 
-  const handleUpdateCategory = async (data: CreateExpenseCategoryForm) => {
-    if (editingCategory) {
-      await updateCategory(editingCategory.id, data);
-      setEditingCategory(null);
-      setShowCategoryForm(false);
+  const handleUpdateBadge = async (data: CreateBadgeForm) => {
+    if (editingBadge) {
+      await updateBadge(editingBadge.id, data);
+      setEditingBadge(null);
+      setShowBadgeForm(false);
     }
   };
 
-  const handleCloseCategoryForm = () => {
-    setShowCategoryForm(false);
-    setEditingCategory(null);
+  const handleCloseBadgeForm = () => {
+    setShowBadgeForm(false);
+    setEditingBadge(null);
+  };
+
+  const handleDeleteBadge = async (badge: BadgeWithStats) => {
+    if (window.confirm(`Êtes-vous sûr de vouloir supprimer le badge "${badge.name}" ? Cette action est irréversible.`)) {
+      await deleteBadge(badge.id);
+    }
+  };
+
+  const handleArchiveBadge = async (badge: BadgeWithStats) => {
+    if (window.confirm(`Êtes-vous sûr de vouloir archiver le badge "${badge.name}" ?`)) {
+      await archiveBadge(badge.id);
+    }
+  };
+
+  const handleReactivateBadge = async (badge: BadgeWithStats) => {
+    if (window.confirm(`Êtes-vous sûr de vouloir réactiver le badge "${badge.name}" ?`)) {
+      await reactivateBadge(badge.id);
+    }
   };
 
   // Statistiques générales
@@ -224,14 +244,14 @@ export function BudgetsAndExpenses() {
                 Budgets ({budgets.length})
               </button>
               <button
-                onClick={() => setActiveTab('categories')}
+                onClick={() => setActiveTab('badges')}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'categories'
+                  activeTab === 'badges'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Postes de Dépenses ({categories.length})
+                Badges ({badges.length})
               </button>
               <button
                 onClick={() => setActiveTab('analysis')}
@@ -304,54 +324,55 @@ export function BudgetsAndExpenses() {
           </div>
         )}
 
-        {activeTab === 'categories' && (
+        {activeTab === 'badges' && (
           <div>
             {/* En-tête avec bouton d'ajout */}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-gray-900">
-                Postes de Dépenses
+                Badges
               </h2>
               <button
-                onClick={() => setShowCategoryForm(true)}
+                onClick={() => setShowBadgeForm(true)}
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Nouveau Poste
+                Nouveau Badge
               </button>
             </div>
 
             {/* Liste des postes */}
-            {categoriesLoading ? (
+            {badgesLoading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-2 text-gray-600">Chargement des postes de dépenses...</p>
+                <p className="mt-2 text-gray-600">Chargement des badges...</p>
               </div>
-            ) : categories.length === 0 ? (
+            ) : badges.length === 0 ? (
               <div className="text-center py-12">
                 <PieChart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Aucun poste de dépense
+                  Aucun badge
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  Créez des postes pour catégoriser vos dépenses.
+                  Créez des badges pour organiser vos dépenses de manière moderne et flexible.
                 </p>
                 <button
-                  onClick={() => setShowCategoryForm(true)}
+                  onClick={() => setShowBadgeForm(true)}
                   className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Créer un Poste
+                  Créer un Badge
                 </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {categories.map((category) => (
-                  <ExpenseCategoryCard
-                    key={category.id}
-                    category={category}
-                    onEdit={handleEditCategory}
-                    onArchive={archiveCategory}
-                    onDelete={deleteCategory}
+                {badges.map((badge) => (
+                  <BadgeCard
+                    key={badge.id}
+                    badge={badge}
+                    onEdit={handleEditBadge}
+                    onArchive={handleArchiveBadge}
+                    onDelete={handleDeleteBadge}
+                    onReactivate={handleReactivateBadge}
                   />
                 ))}
               </div>
@@ -360,17 +381,7 @@ export function BudgetsAndExpenses() {
         )}
 
         {activeTab === 'analysis' && (
-          <div>
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Analyse des Dépenses
-              </h2>
-              <p className="text-gray-600 mt-1">
-                Tableaux de bord et analyses détaillées de vos dépenses par poste, budget et période.
-              </p>
-            </div>
-            <ExpenseAnalysisTable />
-          </div>
+          <BadgeAnalysis />
         )}
       </div>
 
@@ -390,11 +401,11 @@ export function BudgetsAndExpenses() {
         />
       )}
 
-      {showCategoryForm && (
-        <ExpenseCategoryForm
-          category={editingCategory}
-          onSubmit={editingCategory ? handleUpdateCategory : handleCreateCategory}
-          onClose={handleCloseCategoryForm}
+      {showBadgeForm && (
+        <BadgeForm
+          badge={editingBadge}
+          onSubmit={editingBadge ? handleUpdateBadge : handleCreateBadge}
+          onClose={handleCloseBadgeForm}
         />
       )}
     </div>

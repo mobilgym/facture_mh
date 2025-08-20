@@ -55,11 +55,11 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
     onDropRejected: () => setIsDragActive(false)
   });
 
-  const handleImportConfirm = async (fileName: string, date: Date, amount?: number) => {
+  const handleImportConfirm = async (fileName: string, date: Date, amount: number | null, budgetId?: string | null, badgeIds?: string[]) => {
     if (!fileToImport) return;
     
     try {
-      await upload(fileToImport, fileName, date, amount);
+      await upload(fileToImport, fileName, date, amount, budgetId, badgeIds);
       setFileToImport(null);
       setSelectedType(null);
       onSuccess();

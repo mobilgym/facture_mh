@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
-import { X, ChevronDown, ChevronRight, Tag, TrendingUp } from 'lucide-react';
-import type { BudgetWithStats, ExpenseCategory } from '../../types/budget';
-import { useBudgetExpenseCategories } from '../../hooks/useBudgetExpenseCategories';
-import { useExpenses } from '../../hooks/useExpenses';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, ChevronDown, ChevronRight, Tag, TrendingUp, RefreshCw } from 'lucide-react';
+import type { BudgetWithStats } from '../../types/budget';
+import type { Badge, BadgeAnalysis } from '../../types/badge';
+import { useBudgetBadges } from '../../hooks/useBudgetBadges';
+import { useBadges } from '../../hooks/useBadges';
+import { useBudgetNotification } from '../../contexts/BudgetNotificationContext';
+import { supabase } from '../../lib/supabase';
+import { Badge as BadgeComponent } from '../badges/Badge';
+import { BudgetService } from '../../lib/services/budgetService';
+import { BadgeService } from '../../lib/services/badgeService';
 
 interface BudgetDetailsProps {
   budget: BudgetWithStats;
@@ -10,21 +16,65 @@ interface BudgetDetailsProps {
 }
 
 export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const { categories } = useBudgetExpenseCategories(budget.id);
-  const { expenses, loading } = useExpenses({ budgetId: budget.id });
+  const [expandedBadges, setExpandedBadges] = useState<Set<string>>(new Set());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [badgeAnalysis, setBadgeAnalysis] = useState<BadgeAnalysis[]>([]);
+  const { badges } = useBudgetBadges(budget.id);
+  const { generateAnalysis } = useBadges();
+  const { onBudgetChange } = useBudgetNotification();
 
   console.log('🔍 BudgetDetails - Budget ID:', budget.id);
-  console.log('📊 BudgetDetails - Dépenses chargées:', expenses.length);
-  console.log('📋 BudgetDetails - Catégories chargées:', categories.length);
+  console.log('🏷️ BudgetDetails - Badges chargés:', badges.length);
+  console.log('📊 BudgetDetails - Analyse des badges:', badgeAnalysis.length);
+  console.log('🔄 BudgetDetails - Refreshing:', isRefreshing);
 
-  const toggleCategory = (categoryId: string) => {
-    setExpandedCategories(prev => {
+  // Fonction de rafraîchissement avec protection
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      console.log('🔄 BudgetDetails - Génération de l\'analyse des badges pour le budget:', budget.id);
+      const analysis = await generateAnalysis(budget.id);
+      setBadgeAnalysis(analysis);
+      console.log('✅ BudgetDetails - Analyse des badges mise à jour:', analysis.length);
+    } catch (error) {
+      console.error('❌ Erreur lors du rafraîchissement des badges:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [generateAnalysis, budget.id, isRefreshing]);
+
+  // Fonction pour recalculer le montant dépensé du budget
+  const handleRecalculateBudget = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      console.log('🔄 BudgetDetails - Recalcul du montant dépensé pour le budget:', budget.id);
+      await BadgeService.recalculateBudgetSpentAmount(budget.id);
+      console.log('✅ BudgetDetails - Montant dépensé recalculé avec succès');
+      
+      // Actualiser la page pour voir les changements
+      window.location.reload();
+    } catch (error) {
+      console.error('❌ Erreur lors du recalcul du montant dépensé:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [budget.id, isRefreshing]);
+
+  // Charger l'analyse à l'ouverture de la modale
+  useEffect(() => {
+    console.log('🔄 BudgetDetails - Ouverture de la modale, chargement de l\'analyse');
+    handleRefresh();
+  }, []); // Vide = seulement au montage
+
+  const toggleBadge = (badgeId: string) => {
+    setExpandedBadges(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(categoryId)) {
-        newSet.delete(categoryId);
+      if (newSet.has(badgeId)) {
+        newSet.delete(badgeId);
       } else {
-        newSet.add(categoryId);
+        newSet.add(badgeId);
       }
       return newSet;
     });
@@ -43,21 +93,8 @@ export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
     return new Date(dateString).toLocaleDateString('fr-FR');
   };
 
-  // Grouper les dépenses par catégorie
-  const expensesByCategory = expenses.reduce((acc, expense) => {
-    const categoryId = expense.expense_category_id || 'uncategorized';
-    if (!acc[categoryId]) {
-      acc[categoryId] = {
-        expenses: [],
-        totalAmount: 0
-      };
-    }
-    acc[categoryId].expenses.push(expense);
-    acc[categoryId].totalAmount += expense.amount;
-    return acc;
-  }, {} as Record<string, { expenses: typeof expenses, totalAmount: number }>);
-
-  console.log('📊 BudgetDetails - Dépenses groupées par catégorie:', expensesByCategory);
+  console.log('📊 BudgetDetails - Badges du budget:', badges.map(b => ({ id: b.id, name: b.name })));
+  console.log('📊 BudgetDetails - Analyse détaillée des badges:', badgeAnalysis);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -67,12 +104,44 @@ export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
           <h2 className="text-xl font-semibold text-gray-900">
             {budget.name}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="h-6 w-6" />
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={async () => {
+                // Debug : vérifier les dépenses en base
+                const { data, error } = await supabase
+                  .from('expenses')
+                  .select('*')
+                  .eq('budget_id', budget.id);
+                console.log('🔍 DEBUG - Dépenses en base pour ce budget:', data, error);
+              }}
+              className="px-3 py-1 text-xs bg-yellow-100 text-yellow-800 rounded"
+              title="Debug - vérifier les dépenses en base"
+            >
+              DEBUG
+            </button>
+            <button
+              onClick={handleRecalculateBudget}
+              disabled={isRefreshing}
+              className="px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded disabled:opacity-50"
+              title="Recalculer le montant dépensé basé sur les badges"
+            >
+              {isRefreshing ? 'Calcul...' : 'Recalculer'}
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="p-2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+              title="Actualiser les dépenses"
+            >
+              <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
         </div>
 
         {/* Contenu */}
@@ -96,38 +165,37 @@ export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
           {/* Liste des postes de dépenses */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Postes de Dépenses
+              Badges
             </h3>
 
-            {loading ? (
+            {isRefreshing ? (
               <div className="text-center py-8 bg-gray-50 rounded-lg">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Chargement des dépenses...</p>
+                <p className="text-gray-600">Chargement des badges...</p>
               </div>
-            ) : categories.length === 0 ? (
+            ) : badgeAnalysis.length === 0 ? (
               <div className="text-center py-8 bg-gray-50 rounded-lg">
                 <Tag className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600">
-                  Aucun poste de dépense n'est associé à ce budget.
+                  Aucun badge n'est associé à ce budget ou aucune facture n'utilise les badges.
                 </p>
               </div>
             ) : (
               <div className="space-y-2">
-                {categories.map((category) => {
-                  const isExpanded = expandedCategories.has(category.id);
-                  const categoryData = expensesByCategory[category.id] || { expenses: [], totalAmount: 0 };
+                {badgeAnalysis.map((analysis) => {
+                  const isExpanded = expandedBadges.has(analysis.badge.id);
                   const percentage = budget.initial_amount > 0 
-                    ? (categoryData.totalAmount / budget.initial_amount) * 100 
+                    ? (analysis.total_amount / budget.initial_amount) * 100 
                     : 0;
 
                   return (
                     <div 
-                      key={category.id}
+                      key={analysis.badge.id}
                       className="border border-gray-200 rounded-lg overflow-hidden"
                     >
-                      {/* En-tête de la catégorie */}
+                      {/* En-tête du badge */}
                       <button
-                        onClick={() => toggleCategory(category.id)}
+                        onClick={() => toggleBadge(analysis.badge.id)}
                         className="w-full flex items-center justify-between p-4 bg-white hover:bg-gray-50 transition-colors"
                       >
                         <div className="flex items-center space-x-3">
@@ -136,20 +204,12 @@ export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
                           ) : (
                             <ChevronRight className="h-5 w-5 text-gray-400" />
                           )}
-                          <div className="flex items-center space-x-2">
-                            <div 
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: category.color }}
-                            />
-                            <span className="font-medium text-gray-900">
-                              {category.name}
-                            </span>
-                          </div>
+                          <BadgeComponent badge={analysis.badge} variant="default" />
                         </div>
                         <div className="flex items-center space-x-4">
                           <div className="text-right">
                             <p className="text-sm font-medium text-gray-900">
-                              {formatAmount(categoryData.totalAmount)}
+                              {formatAmount(analysis.total_amount)}
                             </p>
                             <p className="text-xs text-gray-500">
                               {percentage.toFixed(1)}% du budget
@@ -158,37 +218,61 @@ export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
                           <div className="flex items-center space-x-1 text-xs">
                             <TrendingUp className="h-4 w-4 text-gray-400" />
                             <span className="text-gray-600">
-                              {categoryData.expenses.length} dépense{categoryData.expenses.length !== 1 ? 's' : ''}
+                              {analysis.files_count} facture{analysis.files_count !== 1 ? 's' : ''}
                             </span>
                           </div>
                         </div>
                       </button>
 
-                      {/* Liste des dépenses */}
-                      {isExpanded && categoryData.expenses.length > 0 && (
+                      {/* Liste des factures */}
+                      {isExpanded && (
                         <div className="border-t border-gray-200 bg-gray-50">
-                          <div className="divide-y divide-gray-200">
-                            {categoryData.expenses.map((expense) => (
-                              <div 
-                                key={expense.id}
-                                className="p-4 hover:bg-gray-100 transition-colors"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="font-medium text-gray-900">
-                                      {expense.title}
-                                    </p>
-                                    <p className="text-sm text-gray-500">
-                                      {formatDate(expense.expense_date)}
-                                    </p>
+                          {analysis.files.length > 0 ? (
+                            <div className="divide-y divide-gray-200">
+                              {analysis.files.map((file) => (
+                                <div 
+                                  key={file.id}
+                                  className="p-4 hover:bg-gray-100 transition-colors"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center space-x-2">
+                                        <p className="font-medium text-gray-900">
+                                          {file.name}
+                                        </p>
+                                        <a
+                                          href={file.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                          title="Voir le fichier"
+                                        >
+                                          📄 Ouvrir
+                                        </a>
+                                      </div>
+                                      <div className="flex items-center space-x-4 mt-1">
+                                        <p className="text-sm text-gray-500">
+                                          {formatDate(file.document_date)}
+                                        </p>
+                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                          Assignée
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="font-medium text-gray-900">
+                                        {formatAmount(file.amount)}
+                                      </p>
+                                    </div>
                                   </div>
-                                  <p className="font-medium text-gray-900">
-                                    {formatAmount(expense.amount)}
-                                  </p>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="p-4 text-center text-gray-500">
+                              <p className="text-sm">Aucune facture pour ce badge</p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

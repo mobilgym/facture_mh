@@ -15,6 +15,8 @@ interface UploadOptions {
   user: User;
   company: Company;
   folderId: string | null;
+  budgetId?: string | null;
+  badgeIds?: string[];
   onProgress?: (progress: number) => void;
 }
 
@@ -52,8 +54,10 @@ export async function uploadFile({
   user,
   company,
   folderId,
+  budgetId,
+  badgeIds,
   onProgress
-}: UploadOptions): Promise<string> {
+}: UploadOptions): Promise<any> {
   try {
     // Valider les entrées
     validateFileSize(file);
@@ -90,7 +94,7 @@ export async function uploadFile({
     }
 
     // Sauvegarder les métadonnées
-    const { error: metadataError } = await supabase
+    const { data: fileData, error: metadataError } = await supabase
       .from('files')
       .insert({
         name: pdfFileName,
@@ -104,14 +108,18 @@ export async function uploadFile({
         document_date: date.toISOString(),
         year,
         month,
-        amount
-      });
+        amount,
+        budget_id: budgetId,
+        badge_ids: badgeIds
+      })
+      .select()
+      .single();
 
     if (metadataError) {
       throw new UploadError('Erreur lors de l\'enregistrement des métadonnées', 'METADATA_ERROR');
     }
 
-    return urlData.publicUrl;
+    return fileData;
   } catch (error) {
     console.error('Upload error:', error);
     throw error instanceof UploadError ? error : new UploadError('Une erreur inattendue est survenue');

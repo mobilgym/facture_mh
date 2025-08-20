@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, DollarSign, Calendar, FileText, Building, Tag, User, CreditCard, RotateCcw } from 'lucide-react';
 import type { CreateExpenseForm, ExpenseWithDetails, PaymentMethod } from '../../types/budget';
 import { useBudgets } from '../../hooks/useBudgets';
-import { useExpenseCategories } from '../../hooks/useExpenseCategories';
+import { useBadges } from '../../hooks/useBadges';
 
 interface ExpenseFormProps {
   expense?: ExpenseWithDetails | null;
@@ -38,7 +38,7 @@ export function ExpenseForm({ expense, onSubmit, onClose, isLoading = false }: E
   const [errors, setErrors] = useState<Partial<CreateExpenseForm>>({});
 
   const { budgets } = useBudgets();
-  const { activeCategories } = useExpenseCategories();
+  const { activeBadges } = useBadges();
 
   // Pré-remplir le formulaire si on édite une dépense
   useEffect(() => {
@@ -283,14 +283,14 @@ export function ExpenseForm({ expense, onSubmit, onClose, isLoading = false }: E
                   value={formData.expense_category_id}
                   onChange={(e) => handleInputChange('expense_category_id', e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled
                 >
-                  <option value="">Aucun poste</option>
-                  {activeCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
+                  <option value="">Aucun poste (Migration en cours)</option>
+                  {/* Temporairement désactivé pendant la migration vers les badges */}
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Section temporairement désactivée - Migration vers le système de badges en cours
+                </p>
               </div>
             </div>
           </div>

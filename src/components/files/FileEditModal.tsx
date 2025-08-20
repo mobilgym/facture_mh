@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Upload, Trash2, DollarSign, Tag, Calendar, Building } from 'lucide-react';
 import type { FileItem } from '../../types/file';
+import type { Badge } from '../../types/badge';
 import { useBudgets } from '../../hooks/useBudgets';
-import { useExpenseCategories } from '../../hooks/useExpenseCategories';
-import { useBudgetExpenseCategories } from '../../hooks/useBudgetExpenseCategories';
+import { useBadges } from '../../hooks/useBadges';
+import { useBudgetBadges } from '../../hooks/useBudgetBadges';
 import { useCompany } from '../../contexts/CompanyContext';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
+import { useBudgetNotification } from '../../contexts/BudgetNotificationContext';
+import { BadgeService } from '../../lib/services/badgeService';
+import { BadgeSelector } from '../badges/BadgeSelector';
 
 interface FileEditModalProps {
   file: FileItem;
@@ -14,6 +18,7 @@ interface FileEditModalProps {
   onClose: () => void;
   onFileUpdated: () => void;
   onFileDeleted: () => void;
+  onBudgetExpenseUpdated?: () => void; // Nouveau callback pour notifier les changements de dépenses
 }
 
 interface FileUpdateData {
@@ -21,65 +26,147 @@ interface FileUpdateData {
   amount: number | null;
   document_date: string;
   budget_id: string | null;
-  expense_category_id: string | null;
+  badge_ids: string[];
 }
 
-export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDeleted }: FileEditModalProps) {
+export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDeleted, onBudgetExpenseUpdated }: FileEditModalProps) {
   const [formData, setFormData] = useState<FileUpdateData>({
     name: '',
     amount: null,
     document_date: '',
     budget_id: null,
-    expense_category_id: null
+    badge_ids: []
   });
   const [newFile, setNewFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const { budgets } = useBudgets();
-  const { activeCategories } = useExpenseCategories();
-  const { categories: budgetCategories } = useBudgetExpenseCategories(formData.budget_id);
-  const [availableCategories, setAvailableCategories] = useState<ExpenseCategory[]>([]);
+  const { activeBadges } = useBadges();
+  const { badges: budgetBadges } = useBudgetBadges(formData.budget_id);
+  const [availableBadges, setAvailableBadges] = useState<Badge[]>([]);
+  const [selectedBadges, setSelectedBadges] = useState<Badge[]>([]);
   const { selectedCompany } = useCompany();
   const { success: showSuccess, error: showError } = useToast();
+  const { notifyBudgetChange } = useBudgetNotification();
 
-  // Mettre à jour les catégories disponibles en fonction du budget sélectionné
+  // Mettre à jour les badges disponibles en fonction du budget sélectionné
   useEffect(() => {
-    // Réinitialiser la catégorie si on change de budget ou si on retire le budget
-    setFormData(prev => ({
-      ...prev,
-      expense_category_id: null
-    }));
+    console.log('🔄 FileEditModal - useEffect badges déclenché:', {
+      budget_id: formData.budget_id,
+      budgetBadges: budgetBadges.length,
+      isInitialized,
+      current_badge_ids: formData.badge_ids
+    });
 
-    // Si un budget est sélectionné, afficher ses postes de dépenses
+    // Si un budget est sélectionné, afficher ses badges autorisés
     if (formData.budget_id) {
-      setAvailableCategories(budgetCategories);
+      setAvailableBadges(budgetBadges);
+      
+      // Vérifier la compatibilité des badges seulement si nous avons les badges chargés
+      // et que l'initialisation est terminée
+      if (isInitialized && formData.badge_ids.length > 0 && budgetBadges.length > 0) {
+        const compatibleBadgeIds = formData.badge_ids.filter(badgeId => 
+          budgetBadges.some(badge => badge.id === badgeId)
+        );
+        
+        if (compatibleBadgeIds.length !== formData.badge_ids.length) {
+          console.log('🔄 FileEditModal - Certains badges incompatibles avec le budget, mise à jour');
+          setFormData(prev => ({
+            ...prev,
+            badge_ids: compatibleBadgeIds
+          }));
+        } else {
+          console.log('✅ FileEditModal - Badges compatibles avec le budget');
+        }
+      }
     } else {
-      // Si aucun budget n'est sélectionné, aucun poste de dépense n'est disponible
-      setAvailableCategories([]);
+      // Si aucun budget n'est sélectionné, tous les badges actifs sont disponibles
+      setAvailableBadges(activeBadges);
     }
-  }, [formData.budget_id, budgetCategories]);
+  }, [formData.budget_id, budgetBadges, activeBadges, isInitialized]);
 
   // Initialiser le formulaire avec les données du fichier
   useEffect(() => {
     if (file) {
       console.log('🔄 FileEditModal - Initialisation avec le fichier:', file);
       console.log('🔄 FileEditModal - Budget ID du fichier:', file.budget_id);
-      console.log('🔄 FileEditModal - Expense Category ID du fichier:', file.expense_category_id);
+      console.log('🔄 FileEditModal - Badge IDs du fichier:', file.badge_ids);
       
+      setIsInitialized(false);
       setFormData({
         name: file.name,
         amount: file.amount || null,
         document_date: file.document_date ? file.document_date.split('T')[0] : '',
         budget_id: file.budget_id || null,
-        expense_category_id: file.expense_category_id || null
+        badge_ids: file.badge_ids || []
       });
+      
+      // Marquer comme initialisé après un délai pour permettre aux autres useEffect de s'exécuter
+      setTimeout(() => {
+        setIsInitialized(true);
+        console.log('✅ FileEditModal - Formulaire initialisé avec les données du fichier');
+      }, 100);
     }
   }, [file]);
+
+  // Mettre à jour les badges sélectionnés quand les IDs changent
+  useEffect(() => {
+    const badges = availableBadges.filter(badge => formData.badge_ids.includes(badge.id));
+    setSelectedBadges(badges);
+  }, [formData.badge_ids, availableBadges]);
+
+  // Effet spécial pour assurer que les badges sont bien disponibles après le chargement
+  useEffect(() => {
+    if (isInitialized && formData.budget_id && budgetBadges.length > 0 && formData.badge_ids.length > 0) {
+      // Vérifier que tous les badges sélectionnés sont bien dans la liste des badges du budget
+      const availableBadgeIds = budgetBadges.map(badge => badge.id);
+      const missingBadgeIds = formData.badge_ids.filter(id => !availableBadgeIds.includes(id));
+      
+      if (missingBadgeIds.length > 0) {
+        console.log('⚠️ FileEditModal - Certains badges non trouvés dans les badges du budget');
+        // Rechercher les badges manquants dans tous les badges actifs
+        const missingBadges = activeBadges.filter(badge => missingBadgeIds.includes(badge.id));
+        if (missingBadges.length > 0) {
+          console.log('✅ FileEditModal - Badges manquants trouvés dans les badges actifs');
+          // Ajouter temporairement ces badges aux badges disponibles
+          setAvailableBadges([...budgetBadges, ...missingBadges]);
+        }
+      } else {
+        console.log('✅ FileEditModal - Tous les badges trouvés dans les badges du budget');
+        setAvailableBadges(budgetBadges);
+      }
+    }
+  }, [isInitialized, formData.budget_id, formData.badge_ids, budgetBadges, activeBadges]);
 
   const handleInputChange = (field: keyof FileUpdateData, value: string | number | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  // Gestion des badges
+  const handleBadgeSelect = (badge: Badge) => {
+    setFormData(prev => ({
+      ...prev,
+      badge_ids: [...prev.badge_ids, badge.id]
+    }));
+  };
+
+  const handleBadgeRemove = (badgeId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      badge_ids: prev.badge_ids.filter(id => id !== badgeId)
+    }));
+  };
+
+  // Réinitialiser les états quand la modale se ferme
+  useEffect(() => {
+    if (!isOpen) {
+      setIsInitialized(false);
+      setNewFile(null);
+      setShowDeleteConfirm(false);
+    }
+  }, [isOpen]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -96,74 +183,35 @@ export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDele
     try {
       console.log('🔍 FileEditModal - Données à sauvegarder:', formData);
       console.log('🔍 FileEditModal - Budget sélectionné:', formData.budget_id);
-      console.log('🔍 FileEditModal - Catégorie sélectionnée:', formData.expense_category_id);
-
-      // Vérifier s'il existe déjà une dépense pour ce fichier
-      const { data: existingExpense, error: checkError } = await supabase
-        .from('expenses')
-        .select('id')
-        .eq('file_id', file.id)
-        .single();
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('❌ Erreur lors de la vérification de dépense existante:', checkError);
+      console.log('🔍 FileEditModal - Badges sélectionnés:', formData.badge_ids);
+      
+      // Validation des données avant sauvegarde
+      if (formData.budget_id && formData.badge_ids.length === 0) {
+        console.log('⚠️ FileEditModal - Budget sélectionné mais aucun badge');
+      } else if (formData.badge_ids.length > 0 && !formData.budget_id) {
+        console.log('⚠️ FileEditModal - Badges sélectionnés mais aucun budget');
       }
 
-      // Créer ou mettre à jour une dépense si un budget est sélectionné
-      if (formData.budget_id && formData.amount) {
-        const expenseData = {
-          company_id: selectedCompany.id,
-          budget_id: formData.budget_id,
-          expense_category_id: formData.expense_category_id,
-          file_id: file.id,
-          title: formData.name,
-          amount: formData.amount,
-          expense_date: formData.document_date ? new Date(formData.document_date).toISOString() : new Date().toISOString(),
-          status: 'approved' as const,
-          created_by: file.created_by
-        };
+      // Assigner les badges au fichier
+      if (formData.badge_ids.length > 0) {
+        console.log('🏷️ Assignation des badges au fichier');
+        // Répartir équitablement le montant total entre tous les badges sélectionnés
+        const amountPerBadge = formData.badge_ids.length > 0 
+          ? formData.amount / formData.badge_ids.length 
+          : 0;
+        
+        const badgeAssignments = formData.badge_ids.map(badgeId => ({
+          badgeId,
+          amountAllocated: amountPerBadge // Répartir équitablement le montant entre les badges
+        }));
 
-        console.log('💾 FileEditModal - Données dépense à insérer/mettre à jour:', expenseData);
-
-        if (existingExpense) {
-          // Mettre à jour la dépense existante
-          console.log('🔄 Mise à jour de la dépense existante:', existingExpense.id);
-          const { error: expenseError } = await supabase
-            .from('expenses')
-            .update(expenseData)
-            .eq('id', existingExpense.id);
-
-          if (expenseError) {
-            console.error('❌ Erreur lors de la mise à jour de la dépense:', expenseError);
-            throw expenseError;
-          }
-          console.log('✅ Dépense mise à jour avec succès');
-        } else {
-          // Créer une nouvelle dépense
-          console.log('➕ Création d\'une nouvelle dépense');
-          const { error: expenseError } = await supabase
-            .from('expenses')
-            .insert(expenseData);
-
-          if (expenseError) {
-            console.error('❌ Erreur lors de la création de la dépense:', expenseError);
-            throw expenseError;
-          }
-          console.log('✅ Dépense créée avec succès');
-        }
-      } else if (existingExpense) {
-        // Si aucun budget n'est sélectionné mais qu'une dépense existe, la supprimer
-        console.log('🗑️ Suppression de la dépense existante car aucun budget sélectionné');
-        const { error: deleteError } = await supabase
-          .from('expenses')
-          .delete()
-          .eq('id', existingExpense.id);
-
-        if (deleteError) {
-          console.error('❌ Erreur lors de la suppression de la dépense:', deleteError);
-          throw deleteError;
-        }
-        console.log('✅ Dépense supprimée avec succès');
+        await BadgeService.assignBadgesToFile(file.id, badgeAssignments, file.created_by);
+        console.log('✅ Badges assignés avec succès');
+      } else {
+        // Supprimer toutes les assignations de badges si aucun badge n'est sélectionné
+        console.log('🗑️ Suppression des assignations de badges existantes');
+        await BadgeService.assignBadgesToFile(file.id, [], file.created_by);
+        console.log('✅ Assignations de badges supprimées');
       }
 
       // Mise à jour des métadonnées du fichier
@@ -172,12 +220,13 @@ export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDele
         amount: formData.amount,
         document_date: formData.document_date ? new Date(formData.document_date).toISOString() : file.document_date,
         budget_id: formData.budget_id,
-        expense_category_id: formData.expense_category_id,
+        badge_ids: formData.badge_ids,
         year: formData.document_date ? new Date(formData.document_date).getFullYear().toString() : file.year,
         month: formData.document_date ? (new Date(formData.document_date).getMonth() + 1).toString().padStart(2, '0') : file.month
       };
 
       console.log('💾 FileEditModal - Données fichier à mettre à jour:', fileUpdateData);
+      console.log('💾 FileEditModal - Sauvegarde des badges:', formData.badge_ids.length > 0 ? 'OUI' : 'NON');
 
       const { error: updateError } = await supabase
         .from('files')
@@ -189,6 +238,7 @@ export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDele
         throw updateError;
       }
       console.log('✅ Fichier mis à jour avec succès');
+      console.log('✅ Badges sauvegardés:', formData.badge_ids.length > 0 ? formData.badge_ids.join(', ') : 'Aucun');
 
       // Si un nouveau fichier est fourni, le remplacer
       if (newFile) {
@@ -200,6 +250,18 @@ export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDele
       showSuccess('Fichier mis à jour avec succès');
       console.log('🔄 Rechargement des données...');
       onFileUpdated();
+      
+      // Notifier les composants budget si des badges ont été modifiés
+      if (formData.budget_id || formData.badge_ids.length > 0) {
+        console.log('🔄 Notification des composants budget...');
+        notifyBudgetChange();
+      }
+      
+      // Callback legacy pour compatibilité
+      if (onBudgetExpenseUpdated && (formData.budget_id || formData.badge_ids.length > 0)) {
+        onBudgetExpenseUpdated();
+      }
+      
       onClose();
     } catch (error) {
       console.error('Erreur lors de la mise à jour du fichier:', error);
@@ -377,27 +439,24 @@ export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDele
             </div>
           </div>
 
-          {/* Poste de dépense */}
+          {/* Badges */}
           <div>
-            <label htmlFor="expense_category_id" className="block text-sm font-medium text-gray-700 mb-1">
-              Poste de dépense
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Badges
             </label>
-            <div className="relative">
-              <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <select
-                id="expense_category_id"
-                value={formData.expense_category_id || ''}
-                onChange={(e) => handleInputChange('expense_category_id', e.target.value || null)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Aucun poste</option>
-                {availableCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    <span style={{ color: category.color }}>●</span> {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <BadgeSelector
+              availableBadges={availableBadges}
+              selectedBadges={selectedBadges}
+              onBadgeSelect={handleBadgeSelect}
+              onBadgeRemove={handleBadgeRemove}
+              placeholder="Sélectionner des badges..."
+              disabled={isLoading}
+            />
+            {formData.budget_id && availableBadges.length === 0 && (
+              <p className="mt-1 text-sm text-gray-500">
+                Aucun badge disponible pour ce budget. Configurez les badges autorisés dans les paramètres du budget.
+              </p>
+            )}
           </div>
 
           {/* Remplacement de fichier */}
