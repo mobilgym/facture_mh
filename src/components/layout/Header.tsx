@@ -21,8 +21,7 @@ export default function Header() {
   const menuItems = [
     { path: '/', icon: FolderOpen, label: 'Documents' },
     { path: '/companies', icon: Building2, label: 'Sociétés' },
-    { path: '/budgets', icon: BarChart3, label: 'Budgets' },
-    { path: '/expenses', icon: DollarSign, label: 'Dépenses' }
+    { path: '/budgets', icon: BarChart3, label: 'Budgets' }
   ];
 
   return (

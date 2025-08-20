@@ -8,7 +8,7 @@ import Companies from '@/pages/Companies';
 import Documents from '@/pages/Documents';
 import FolderView from '@/pages/FolderView';
 import { BudgetsAndExpenses } from '@/pages/BudgetsAndExpenses';
-import { Expenses } from '@/pages/Expenses';
+
 
 
 export default function AppRoutes() {
@@ -42,11 +42,7 @@ export default function AppRoutes() {
           <BudgetsAndExpenses />
         </AuthGuard>
       } />
-      <Route path="/expenses" element={
-        <AuthGuard>
-          <Expenses />
-        </AuthGuard>
-      } />
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

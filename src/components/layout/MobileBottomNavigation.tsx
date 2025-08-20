@@ -10,8 +10,7 @@ export default function MobileBottomNavigation() {
   const menuItems = [
     { path: '/', icon: Home, label: 'Accueil' },
     { path: '/companies', icon: Building2, label: 'Sociétés' },
-    { path: '/budgets', icon: BarChart3, label: 'Budgets' },
-    { path: '/expenses', icon: DollarSign, label: 'Dépenses' }
+    { path: '/budgets', icon: BarChart3, label: 'Budgets' }
   ];
 
   return (
