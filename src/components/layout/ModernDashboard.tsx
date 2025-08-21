@@ -19,7 +19,7 @@ import {
   Menu
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import FileGrid from '@/components/files/FileGrid';
+import EnhancedFileGrid from '@/components/files/EnhancedFileGrid';
 import SubmittedInvoicesList from '@/components/invoices/SubmittedInvoicesList';
 import FileUploader from '@/components/files/FileUploader';
 import CompactUploader from '@/components/files/CompactUploader';
@@ -27,8 +27,9 @@ import YearlyNavigation from './YearlyNavigation';
 import { useFiles } from '@/hooks/useFiles';
 import { useSubmittedInvoices } from '@/hooks/useSubmittedInvoices';
 import { deleteFile } from '@/lib/services/fileService';
-import { updateFileMetadata } from '@/lib/services/fileUpdateService';
+import { updateFileMetadata, updateFileWithBadges } from '@/lib/services/fileUpdateService';
 import { useToast } from '@/hooks/useToast';
+import { useAuth } from '@/contexts/AuthContext';
 import type { FileItem } from '@/types/file';
 
 type ViewMode = 'grid' | 'list';
@@ -55,6 +56,7 @@ export default function ModernDashboard() {
   });
   
   const toast = useToast();
+  const { user } = useAuth();
   
   // Data hooks
   const { files, loading: loadingFiles, error: errorFiles, refetch: refetchFiles } = useFiles(
@@ -133,12 +135,27 @@ export default function ModernDashboard() {
   }, [files, invoices]);
 
   const handleFileUpdate = async (fileId: string, updates: Partial<FileItem>) => {
+    if (!user) {
+      toast.error('Utilisateur non connecté');
+      return;
+    }
+
     try {
-      await updateFileMetadata(fileId, updates);
+      console.log('🔄 ModernDashboard - handleFileUpdate:', fileId, updates);
+      
+      // Vérifier si nous avons des badges à gérer
+      if (updates.badge_ids !== undefined || updates.budget_id !== undefined) {
+        console.log('🏷️ Mise à jour avec badges/budget - utilisation de updateFileWithBadges');
+        await updateFileWithBadges(fileId, updates, user.id);
+      } else {
+        console.log('📝 Mise à jour simple - utilisation de updateFileMetadata');
+        await updateFileMetadata(fileId, updates);
+      }
+      
       toast.success('Facture mise à jour avec succès');
       await refetchFiles();
     } catch (error) {
-      console.error('Error updating file:', error);
+      console.error('❌ Error updating file:', error);
       toast.error('Erreur lors de la mise à jour de la facture');
     }
   };
@@ -491,7 +508,7 @@ export default function ModernDashboard() {
                                           className="space-y-4 md:space-y-6"
                       >
                         {selectedPeriod.year && selectedPeriod.month ? (
-                          <FileGrid
+                          <EnhancedFileGrid
                             files={filteredCurrentFiles}
                             onDelete={handleFileDelete}
                             onUpdate={refetchFiles}

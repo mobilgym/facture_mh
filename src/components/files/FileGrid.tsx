@@ -3,12 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatDate } from '@/lib/utils/date';
 import { formatAmount } from '@/lib/utils/currency';
 import { checkFileAvailability } from '@/lib/services/fileAvailabilityService';
-import { FileText, Calendar, EuroIcon, Edit3, Save, X, Settings, Wallet } from 'lucide-react';
+import { FileText, Calendar, EuroIcon, Edit3, Save, X, Settings, Wallet, Tag, Check } from 'lucide-react';
 import FileActions from './FileActions';
 import FileTotal from './FileTotal';
 import { FileEditModal } from './FileEditModal';
+import FloatingActionBar from './FloatingActionBar';
 import Button from '@/components/ui/Button';
+import Tooltip from '@/components/ui/Tooltip';
 import type { FileItem } from '@/types/file';
+import { useBudgets } from '@/hooks/useBudgets';
+import { useBadges } from '@/hooks/useBadges';
 
 interface FileGridProps {
   files: FileItem[];
@@ -16,6 +20,12 @@ interface FileGridProps {
   onUpdate: () => void;
   onUpdateFile?: (fileId: string, updates: Partial<FileItem>) => Promise<void>;
   onBudgetExpenseUpdated?: () => void;
+  // Nouvelles props pour la sélection multiple
+  selectionMode?: boolean;
+  onToggleSelectionMode?: () => void;
+  selectedFiles?: string[];
+  onSelectFile?: (fileId: string) => void;
+  onBulkAction?: (action: string, fileIds: string[]) => void;
 }
 
 interface EditingState {
@@ -24,13 +34,28 @@ interface EditingState {
   value: string;
 }
 
-export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile, onBudgetExpenseUpdated }: FileGridProps) {
+export default function FileGrid({ 
+  files = [], 
+  onDelete, 
+  onUpdate, 
+  onUpdateFile, 
+  onBudgetExpenseUpdated,
+  selectionMode = false,
+  onToggleSelectionMode,
+  selectedFiles = [],
+  onSelectFile,
+  onBulkAction
+}: FileGridProps) {
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [availableFiles, setAvailableFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<EditingState | null>(null);
   const [editingFile, setEditingFile] = useState<FileItem | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  
+  // Hooks pour récupérer les données des budgets et badges
+  const { budgets } = useBudgets();
+  const { badges } = useBadges();
 
   useEffect(() => {
     const checkFiles = async () => {
@@ -87,8 +112,28 @@ export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile,
   };
 
   const handleFileClick = (file: FileItem) => {
-    setEditingFile(file);
-    setShowEditModal(true);
+    if (selectionMode) {
+      // En mode sélection, toggle la sélection au lieu d'ouvrir le modal
+      onSelectFile?.(file.id);
+    } else {
+      setEditingFile(file);
+      setShowEditModal(true);
+    }
+  };
+
+  const handleSelectFile = (fileId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    onSelectFile?.(fileId);
+  };
+
+  // Fonction pour obtenir les informations du budget
+  const getBudgetInfo = (budgetId: string) => {
+    return budgets.find(b => b.id === budgetId);
+  };
+
+  // Fonction pour obtenir les informations des badges
+  const getBadgeInfo = (badgeIds: string[]) => {
+    return badges.filter(b => badgeIds.includes(b.id));
   };
 
   const handleCloseEditModal = () => {
@@ -133,177 +178,281 @@ export default function FileGrid({ files = [], onDelete, onUpdate, onUpdateFile,
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6 gap-3"
       >
         <AnimatePresence>
-          {availableFiles.map((file) => (
-            <motion.div
-              key={file.id}
-              variants={item}
-              layoutId={file.id}
-              whileHover={{ scale: 1.02, y: -4 }}
-              className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-100 min-h-[180px] md:min-h-[200px] cursor-pointer"
-              onClick={() => handleFileClick(file)}
-            >
-              <div className="flex flex-col h-full">
-                {/* En-tête avec le nom de la facture */}
-                <div className="p-3 md:p-4 border-b border-gray-100 bg-white">
-                  {/* Titre avec icône */}
-                  <div className="flex items-center space-x-2 md:space-x-3 mb-2 md:mb-3">
-                      <div className="relative">
-                        <div className="p-1.5 md:p-2 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg">
-                          <FileText className="h-4 w-4 md:h-5 md:w-5 text-cyan-600" />
-                        </div>
-                        {file.budget_id && (
-                          <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 shadow-sm">
-                            <Wallet className="h-2.5 w-2.5 text-white" />
+          {availableFiles.map((file) => {
+            const isSelected = selectedFiles.includes(file.id);
+            return (
+              <motion.div
+                key={file.id}
+                variants={item}
+                layoutId={file.id}
+                whileHover={{ scale: 1.02, y: -2 }}
+                className={`relative bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border ${
+                  isSelected 
+                    ? 'border-blue-500 ring-2 ring-blue-200' 
+                    : 'border-gray-200 hover:border-gray-300'
+                } cursor-pointer group backdrop-blur-sm ${
+                  selectionMode ? 'cursor-pointer' : ''
+                }`}
+                onClick={() => handleFileClick(file)}
+              >
+                {/* Overlay de sélection */}
+                {selectionMode && (
+                  <div 
+                    className={`absolute top-2 left-2 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                      isSelected 
+                        ? 'bg-blue-500 border-blue-500' 
+                        : 'bg-white border-gray-300 hover:border-blue-400'
+                    }`}
+                    onClick={(e) => handleSelectFile(file.id, e)}
+                  >
+                    {isSelected && <Check className="h-3 w-3 text-white" />}
+                  </div>
+                )}
+
+                {/* Indicateurs de budget et badges avec tooltips */}
+                <div className="absolute top-2 right-2 flex space-x-1">
+                  {file.budget_id && (
+                    <Tooltip
+                      content={
+                        <div className="text-center">
+                          <div className="font-medium">Budget assigné</div>
+                          <div className="text-xs mt-1">
+                            {getBudgetInfo(file.budget_id)?.name || 'Budget inconnu'}
                           </div>
-                        )}
-                      </div>
-                    <h3 
-                      className="font-medium text-gray-900 break-words leading-tight flex-1 cursor-pointer hover:text-cyan-600 transition-colors text-sm md:text-base line-clamp-2"
-                      title={file.name}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(file.url, '_blank');
-                      }}
+                        </div>
+                      }
+                      position="bottom"
                     >
+                      <div className="bg-green-500/90 backdrop-blur-sm rounded-full p-1 shadow-sm">
+                        <Wallet className="h-3 w-3 text-white" />
+                      </div>
+                    </Tooltip>
+                  )}
+                  {file.badge_ids && file.badge_ids.length > 0 && (
+                    <div className="flex space-x-0.5">
+                      {getBadgeInfo(file.badge_ids).slice(0, 3).map((badge, index) => (
+                        <Tooltip
+                          key={badge.id}
+                          content={
+                            <div className="text-center">
+                              <div className="font-medium">{badge.name}</div>
+                              {file.badge_ids && file.badge_ids.length > 1 && (
+                                <div className="text-xs mt-1">
+                                  {index + 1} sur {file.badge_ids.length} badge{file.badge_ids.length > 1 ? 's' : ''}
+                                </div>
+                              )}
+                            </div>
+                          }
+                          position="bottom"
+                        >
+                          <div 
+                            className="backdrop-blur-sm rounded-full p-1 shadow-sm ring-1 ring-white/20"
+                            style={{ backgroundColor: `${badge.color}90` }} // 90 pour la transparence
+                          >
+                            <Tag className="h-2.5 w-2.5 text-white" />
+                          </div>
+                        </Tooltip>
+                      ))}
+                      {file.badge_ids.length > 3 && (
+                        <Tooltip
+                          content={
+                            <div className="text-center">
+                              <div className="font-medium">
+                                +{file.badge_ids.length - 3} badge{file.badge_ids.length - 3 > 1 ? 's' : ''} supplémentaire{file.badge_ids.length - 3 > 1 ? 's' : ''}
+                              </div>
+                              <div className="text-xs mt-1 space-y-1">
+                                {getBadgeInfo(file.badge_ids).slice(3).map(badge => (
+                                  <div key={badge.id} className="flex items-center space-x-1">
+                                    <div 
+                                      className="w-2 h-2 rounded-full" 
+                                      style={{ backgroundColor: badge.color }}
+                                    ></div>
+                                    <span>{badge.name}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          }
+                          position="bottom"
+                        >
+                          <div className="bg-gray-600/90 backdrop-blur-sm rounded-full p-1 shadow-sm ring-1 ring-white/20">
+                            <span className="text-white text-[10px] font-bold leading-none">
+                              +{file.badge_ids.length - 3}
+                            </span>
+                          </div>
+                        </Tooltip>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3">
+                  {/* En-tête compact */}
+                  <div className="flex items-start space-x-2 mb-3">
+                    <div className="flex-shrink-0">
+                      <div className="p-2 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg">
+                        <FileText className="h-4 w-4 text-blue-600" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 
+                        className="font-medium text-gray-900 text-sm leading-tight line-clamp-2 hover:text-blue-600 transition-colors cursor-pointer"
+                        title={file.name}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(file.url, '_blank');
+                        }}
+                      >
                         {file.name}
                       </h3>
                     </div>
-                  
-                  {/* Boutons d'action séparés */}
-                  <div className="flex justify-end items-center pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
-                    <FileActions
-                      file={file}
-                      onDelete={() => setSelectedFile(file)}
-                    />
                   </div>
-                </div>
 
-                {/* Corps avec les métadonnées */}
-                <div className="p-3 md:p-4 space-y-2 md:space-y-3">
-                  <div className="bg-gray-50 rounded-lg p-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 text-gray-400" />
+                  {/* Métadonnées compactes */}
+                  <div className="space-y-2">
+                    {/* Date */}
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center text-gray-500">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        <span>Date</span>
                       </div>
-                      
                       {editing?.fileId === file.id && editing.field === 'date' ? (
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1">
                           <input
                             type="date"
                             value={editing.value}
                             onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                            className="text-xs md:text-sm border border-gray-300 rounded px-1 md:px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white w-20 md:w-auto"
+                            className="text-xs border border-gray-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white w-24"
                             autoFocus
                           />
                           <Button
                             size="sm"
                             onClick={handleSave}
-                            className="bg-green-600 hover:bg-green-700 text-white p-1"
+                            className="bg-green-600 hover:bg-green-700 text-white p-0.5"
                             title="Sauvegarder"
                           >
-                            <Save className="h-3 w-3" />
+                            <Save className="h-2.5 w-2.5" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={handleCancel}
-                            className="hover:bg-red-50 hover:text-red-600 p-1"
+                            className="hover:bg-red-50 hover:text-red-600 p-0.5"
                             title="Annuler"
                           >
-                            <X className="h-3 w-3" />
+                            <X className="h-2.5 w-2.5" />
                           </Button>
                         </div>
                       ) : (
-                        <div className="flex items-center space-x-1 md:space-x-2 group">
-                          <span className="text-xs md:text-sm text-gray-600">
+                        <div className="flex items-center space-x-1 group/date">
+                          <span className="text-gray-700 font-medium">
                             {formatDate(file.document_date)}
                           </span>
                           {onUpdateFile && (
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => {
-                                // Convertir la date au format YYYY-MM-DD pour l'input date
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 const date = new Date(file.document_date);
                                 const formattedDate = date.toISOString().split('T')[0];
                                 handleEdit(file.id, 'date', formattedDate);
                               }}
-                              className="opacity-60 group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-700 transition-all duration-200 p-1"
+                              className="opacity-0 group-hover/date:opacity-100 hover:bg-gray-100 hover:text-gray-700 transition-all duration-200 p-0.5"
                               title="Modifier la date"
                             >
-                              <Edit3 className="h-3 w-3" />
+                              <Edit3 className="h-2.5 w-2.5" />
                             </Button>
                           )}
                         </div>
                       )}
                     </div>
-                  </div>
 
-                  <div className="bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 rounded-lg p-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <EuroIcon className="h-4 w-4" />
+                    {/* Montant */}
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center text-gray-500">
+                        <EuroIcon className="h-3 w-3 mr-1" />
+                        <span>Montant</span>
                       </div>
-                      
                       {editing?.fileId === file.id && editing.field === 'amount' ? (
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1">
                           <input
                             type="number"
                             step="0.01"
                             value={editing.value}
                             onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                            className="w-16 md:w-20 text-xs md:text-sm border border-cyan-300 rounded px-1 md:px-2 py-1 focus:outline-none focus:ring-1 focus:ring-cyan-500 bg-white"
+                            className="w-16 text-xs border border-blue-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                             autoFocus
                           />
                           <Button
                             size="sm"
                             onClick={handleSave}
-                            className="bg-green-600 hover:bg-green-700 text-white p-1"
+                            className="bg-green-600 hover:bg-green-700 text-white p-0.5"
                             title="Sauvegarder"
                           >
-                            <Save className="h-3 w-3" />
+                            <Save className="h-2.5 w-2.5" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={handleCancel}
-                            className="hover:bg-red-50 hover:text-red-600 p-1"
+                            className="hover:bg-red-50 hover:text-red-600 p-0.5"
                             title="Annuler"
                           >
-                            <X className="h-3 w-3" />
+                            <X className="h-2.5 w-2.5" />
                           </Button>
                         </div>
                       ) : (
-                        <div className="flex items-center space-x-1 md:space-x-2 group">
-                      <span className="font-semibold text-xs md:text-sm">
+                        <div className="flex items-center space-x-1 group/amount">
+                          <span className="font-semibold text-blue-600">
                             {file.amount ? formatAmount(file.amount) : 'N/A'}
-                      </span>
+                          </span>
                           {onUpdateFile && (
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => handleEdit(file.id, 'amount', file.amount?.toString() || '0')}
-                              className="opacity-60 group-hover:opacity-100 hover:bg-cyan-100 hover:text-cyan-700 transition-all duration-200 p-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(file.id, 'amount', file.amount?.toString() || '0');
+                              }}
+                              className="opacity-0 group-hover/amount:opacity-100 hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 p-0.5"
                               title="Modifier le montant"
                             >
-                              <Edit3 className="h-3 w-3" />
+                              <Edit3 className="h-2.5 w-2.5" />
                             </Button>
                           )}
                         </div>
                       )}
                     </div>
                   </div>
+
+                  {/* Actions en bas */}
+                  <div className="mt-3 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onClick={(e) => e.stopPropagation()}>
+                    <FileActions
+                      file={file}
+                      onDelete={() => setSelectedFile(file)}
+                    />
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
       </motion.div>
 
       <FileTotal files={availableFiles} />
+
+      {/* Barre d'action flottante pour la sélection multiple */}
+      {selectionMode && selectedFiles.length > 0 && (
+        <FloatingActionBar
+          selectedCount={selectedFiles.length}
+          onClose={() => onToggleSelectionMode?.()}
+          onBulkAction={(action) => onBulkAction?.(action, selectedFiles)}
+        />
+      )}
 
       {/* Modal d'édition */}
       {showEditModal && editingFile && (

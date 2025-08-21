@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, ChevronDown, ChevronRight, Tag, TrendingUp, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { X, ChevronDown, ChevronRight, Tag, TrendingUp, RefreshCw, Check, Filter } from 'lucide-react';
 import type { BudgetWithStats } from '../../types/budget';
 import type { Badge, BadgeAnalysis } from '../../types/badge';
 import { useBudgetBadges } from '../../hooks/useBudgetBadges';
@@ -19,6 +19,8 @@ export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
   const [expandedBadges, setExpandedBadges] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [badgeAnalysis, setBadgeAnalysis] = useState<BadgeAnalysis[]>([]);
+  const [selectedBadges, setSelectedBadges] = useState<Set<string>>(new Set());
+  const [showOnlySelected, setShowOnlySelected] = useState(false);
   const { badges } = useBudgetBadges(budget.id);
   const { generateAnalysis } = useBadges();
   const { onBudgetChange } = useBudgetNotification();
@@ -27,6 +29,68 @@ export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
   console.log('🏷️ BudgetDetails - Badges chargés:', badges.length);
   console.log('📊 BudgetDetails - Analyse des badges:', badgeAnalysis.length);
   console.log('🔄 BudgetDetails - Refreshing:', isRefreshing);
+  console.log('🎯 BudgetDetails - Badges sélectionnés:', Array.from(selectedBadges));
+  console.log('👁️ BudgetDetails - Afficher seulement sélectionnés:', showOnlySelected);
+
+  // Fonction pour basculer la sélection d'un badge
+  const toggleBadgeSelection = (badgeId: string) => {
+    setSelectedBadges(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(badgeId)) {
+        newSet.delete(badgeId);
+      } else {
+        newSet.add(badgeId);
+      }
+      return newSet;
+    });
+  };
+
+  // Fonction pour sélectionner/désélectionner tous les badges
+  const toggleAllBadges = () => {
+    if (selectedBadges.size === badgeAnalysis.length) {
+      setSelectedBadges(new Set());
+    } else {
+      setSelectedBadges(new Set(badgeAnalysis.map(analysis => analysis.badge.id)));
+    }
+  };
+
+  // Calcul dynamique des statistiques basées sur la sélection
+  const dynamicStats = useMemo(() => {
+    if (selectedBadges.size === 0 || !showOnlySelected) {
+      // Si aucun badge sélectionné ou mode normal, afficher toutes les stats
+      const totalAmount = badgeAnalysis.reduce((sum, analysis) => sum + analysis.total_amount, 0);
+      const totalFiles = badgeAnalysis.reduce((sum, analysis) => sum + analysis.files_count, 0);
+      const percentage = budget.initial_amount > 0 ? (totalAmount / budget.initial_amount) * 100 : 0;
+      
+      return {
+        totalAmount,
+        totalFiles,
+        percentage,
+        remainingAmount: budget.initial_amount - totalAmount
+      };
+    } else {
+      // Calculer les stats seulement pour les badges sélectionnés
+      const selectedAnalysis = badgeAnalysis.filter(analysis => selectedBadges.has(analysis.badge.id));
+      const totalAmount = selectedAnalysis.reduce((sum, analysis) => sum + analysis.total_amount, 0);
+      const totalFiles = selectedAnalysis.reduce((sum, analysis) => sum + analysis.files_count, 0);
+      const percentage = budget.initial_amount > 0 ? (totalAmount / budget.initial_amount) * 100 : 0;
+      
+      return {
+        totalAmount,
+        totalFiles,
+        percentage,
+        remainingAmount: budget.initial_amount - totalAmount
+      };
+    }
+  }, [badgeAnalysis, selectedBadges, showOnlySelected, budget.initial_amount]);
+
+  // Filtrage des badges à afficher
+  const displayedBadges = useMemo(() => {
+    if (showOnlySelected && selectedBadges.size > 0) {
+      return badgeAnalysis.filter(analysis => selectedBadges.has(analysis.badge.id));
+    }
+    return badgeAnalysis;
+  }, [badgeAnalysis, selectedBadges, showOnlySelected]);
 
   // Fonction de rafraîchissement avec protection
   const handleRefresh = useCallback(async () => {
@@ -150,27 +214,97 @@ export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
 
         {/* Contenu */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {/* Résumé du budget */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 mb-6 sm:mb-8">
-            <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
-              <p className="text-xs sm:text-sm font-medium text-green-700">Budget Initial</p>
-              <p className="text-lg sm:text-2xl font-bold text-green-900">{formatAmount(budget.initial_amount)}</p>
+          {/* Résumé du budget avec statistiques dynamiques */}
+          <div className="space-y-4 sm:space-y-6 mb-6 sm:mb-8">
+            {/* Résumé du budget original */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
+              <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
+                <p className="text-xs sm:text-sm font-medium text-green-700">Budget Initial</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-900">{formatAmount(budget.initial_amount)}</p>
+              </div>
+              <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
+                <p className="text-xs sm:text-sm font-medium text-blue-700">Dépensé (Original)</p>
+                <p className="text-lg sm:text-2xl font-bold text-blue-900">{formatAmount(budget.spent_amount)}</p>
+              </div>
+              <div className="bg-cyan-50 p-3 sm:p-4 rounded-lg">
+                <p className="text-xs sm:text-sm font-medium text-cyan-700">Restant (Original)</p>
+                <p className="text-lg sm:text-2xl font-bold text-cyan-900">{formatAmount(budget.remaining_amount)}</p>
+              </div>
             </div>
-            <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
-              <p className="text-xs sm:text-sm font-medium text-blue-700">Dépensé</p>
-              <p className="text-lg sm:text-2xl font-bold text-blue-900">{formatAmount(budget.spent_amount)}</p>
-            </div>
-            <div className="bg-cyan-50 p-3 sm:p-4 rounded-lg">
-              <p className="text-xs sm:text-sm font-medium text-cyan-700">Restant</p>
-              <p className="text-lg sm:text-2xl font-bold text-cyan-900">{formatAmount(budget.remaining_amount)}</p>
-            </div>
+
+            {/* Statistiques dynamiques basées sur la sélection */}
+            {selectedBadges.size > 0 && showOnlySelected && (
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-purple-800">
+                    📊 Statistiques des badges sélectionnés
+                  </h4>
+                  <span className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded-full">
+                    {selectedBadges.size} badge{selectedBadges.size > 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div className="text-center">
+                    <p className="text-xs text-purple-600">Montant Total</p>
+                    <p className="text-lg font-bold text-purple-900">{formatAmount(dynamicStats.totalAmount)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-purple-600">% du Budget</p>
+                    <p className="text-lg font-bold text-purple-900">{dynamicStats.percentage.toFixed(1)}%</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-purple-600">Factures</p>
+                    <p className="text-lg font-bold text-purple-900">{dynamicStats.totalFiles}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-purple-600">Impact Restant</p>
+                    <p className="text-lg font-bold text-purple-900">{formatAmount(dynamicStats.remainingAmount)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Liste des badges */}
+          {/* Liste des badges avec contrôles de sélection */}
           <div className="space-y-3 sm:space-y-4">
-            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">
-              Badges
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3 sm:mb-4">
+              <h3 className="text-base sm:text-lg font-medium text-gray-900">
+                Badges
+              </h3>
+              
+              {/* Contrôles de sélection */}
+              {badgeAnalysis.length > 0 && (
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={toggleAllBadges}
+                      className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                    >
+                      {selectedBadges.size === badgeAnalysis.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                    </button>
+                    {selectedBadges.size > 0 && (
+                      <span className="text-xs text-gray-500">
+                        ({selectedBadges.size}/{badgeAnalysis.length})
+                      </span>
+                    )}
+                  </div>
+                  
+                  {selectedBadges.size > 0 && (
+                    <button
+                      onClick={() => setShowOnlySelected(!showOnlySelected)}
+                      className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                        showOnlySelected 
+                          ? 'bg-purple-100 text-purple-800 hover:bg-purple-200' 
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Filter className="h-3 w-3 mr-1" />
+                      {showOnlySelected ? 'Afficher tous' : 'Seulement sélectionnés'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
             {isRefreshing ? (
               <div className="text-center py-6 sm:py-8 bg-gray-50 rounded-lg">
@@ -186,8 +320,9 @@ export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
               </div>
             ) : (
               <div className="space-y-2">
-                {badgeAnalysis.map((analysis) => {
+                {displayedBadges.map((analysis) => {
                   const isExpanded = expandedBadges.has(analysis.badge.id);
+                  const isSelected = selectedBadges.has(analysis.badge.id);
                   const percentage = budget.initial_amount > 0 
                     ? (analysis.total_amount / budget.initial_amount) * 100 
                     : 0;
@@ -195,41 +330,65 @@ export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
                   return (
                     <div 
                       key={analysis.badge.id}
-                      className="border border-gray-200 rounded-lg overflow-hidden"
+                      className={`border rounded-lg overflow-hidden transition-all duration-200 ${
+                        isSelected 
+                          ? 'border-purple-500 bg-purple-50' 
+                          : 'border-gray-200 bg-white'
+                      }`}
                     >
-                      {/* En-tête du badge */}
-                      <button
-                        onClick={() => toggleBadge(analysis.badge.id)}
-                        className="w-full flex items-center justify-between p-3 sm:p-4 bg-white hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <BadgeComponent badge={analysis.badge} variant="default" />
+                      {/* En-tête du badge avec checkbox */}
+                      <div className="flex items-center p-3 sm:p-4">
+                        {/* Checkbox de sélection */}
+                        <div 
+                          className="flex-shrink-0 mr-3 cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleBadgeSelection(analysis.badge.id);
+                          }}
+                        >
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
+                            isSelected 
+                              ? 'bg-purple-500 border-purple-500' 
+                              : 'border-gray-300 hover:border-purple-400'
+                          }`}>
+                            {isSelected && <Check className="h-3 w-3 text-white" />}
                           </div>
                         </div>
-                        <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 flex-shrink-0 ml-2">
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-gray-900">
-                              {formatAmount(analysis.total_amount)}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {percentage.toFixed(1)}% du budget
-                            </p>
+
+                        {/* Bouton d'expansion */}
+                        <button
+                          onClick={() => toggleBadge(analysis.badge.id)}
+                          className="w-full flex items-center justify-between hover:bg-gray-50 transition-colors rounded"
+                        >
+                          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <BadgeComponent badge={analysis.badge} variant="default" />
+                            </div>
                           </div>
-                          <div className="flex items-center space-x-1 text-xs">
-                            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
-                            <span className="text-gray-600">
-                              {analysis.files_count} <span className="hidden sm:inline">facture{analysis.files_count !== 1 ? 's' : ''}</span>
-                              <span className="sm:hidden">fact.</span>
-                            </span>
+                          <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 flex-shrink-0 ml-2">
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-gray-900">
+                                {formatAmount(analysis.total_amount)}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {percentage.toFixed(1)}% du budget
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-1 text-xs">
+                              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                              <span className="text-gray-600">
+                                {analysis.files_count} <span className="hidden sm:inline">facture{analysis.files_count !== 1 ? 's' : ''}</span>
+                                <span className="sm:hidden">fact.</span>
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      </button>
+                        </button>
+                      </div>
 
                       {/* Liste des factures */}
                       {isExpanded && (
