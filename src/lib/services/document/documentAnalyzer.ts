@@ -32,21 +32,30 @@ export class DocumentAnalyzer {
   private worker: Tesseract.Worker | null = null;
 
   /**
-   * Initialise le worker OCR
+   * Initialise le worker OCR avec configuration optimisée
    */
   private async initializeWorker(): Promise<void> {
     if (this.worker) return;
 
     try {
-      console.log('🤖 Initialisation du moteur OCR...');
-      this.worker = await Tesseract.createWorker('fra', 1, {
+      console.log('🤖 Initialisation du moteur OCR avancé...');
+      this.worker = await Tesseract.createWorker(['fra', 'eng'], 1, {
         logger: m => {
           if (m.status === 'recognizing text') {
             console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
           }
         }
       });
-      console.log('✅ Moteur OCR initialisé avec succès');
+
+      // Configuration avancée pour améliorer la précision
+      await this.worker.setParameters({
+        tessedit_page_seg_mode: Tesseract.PSM.AUTO,
+        tessedit_ocr_engine_mode: Tesseract.OEM.LSTM_ONLY,
+        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝàáâãäåçèéêëìíîïñòóôõöùúûüÿ€.,/()-:;',
+        preserve_interword_spaces: '1',
+      });
+
+      console.log('✅ Moteur OCR avancé initialisé avec succès');
     } catch (error) {
       console.error('❌ Erreur lors de l\'initialisation OCR:', error);
       throw new OCRInitializationError(`Impossible d'initialiser le moteur OCR: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);

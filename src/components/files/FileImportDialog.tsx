@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Calendar, Building2, EuroIcon, FileText, FileImage, Wallet, Tag, Brain, Loader2 } from 'lucide-react';
+import { Calendar, Building2, EuroIcon, FileText, FileImage, Wallet, Tag, Brain, Loader2, Sparkles, Globe, Settings, TestTube } from 'lucide-react';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useCompanies } from '@/hooks/useCompanies';
 import { useBudgets } from '@/hooks/useBudgets';
@@ -11,7 +11,10 @@ import PercentageSlider from '@/components/ui/PercentageSlider';
 import { DocumentType } from './TypeSelectionDialog';
 import { BadgeSelector } from '@/components/badges/BadgeSelector';
 import type { Badge } from '@/types/badge';
-import { documentAnalyzer, ExtractedDocumentData } from '@/lib/services/document/documentAnalyzer';
+import { enhancedDocumentAnalyzer, ExtractedDocumentData } from '@/lib/services/document/enhancedDocumentAnalyzer';
+import { n8nWebhookService, WebhookExtractedData } from '@/lib/services/webhook/n8nWebhookService';
+import WebhookConfig from '@/components/webhook/WebhookConfig';
+import WebhookDiagnostic from '@/components/webhook/WebhookDiagnostic';
 
 interface FileImportDialogProps {
   file: File;
@@ -21,9 +24,17 @@ interface FileImportDialogProps {
   onConfirm: (fileName: string, date: Date, amount: number | null, budgetId?: string | null, badgeIds?: string[]) => void;
 }
 
+// Fonction utilitaire pour les couleurs de confiance
+const getConfidenceColor = (confidence: number): string => {
+  if (confidence >= 80) return 'bg-green-500'; // Très bonne confiance
+  if (confidence >= 60) return 'bg-yellow-500'; // Confiance moyenne
+  if (confidence >= 40) return 'bg-orange-500'; // Confiance faible
+  return 'bg-red-500'; // Très faible confiance
+};
+
 export default function FileImportDialog({ file, documentType, isOpen, onClose, onConfirm }: FileImportDialogProps) {
   const [fileName, setFileName] = useState(() => {
-    return documentType === 'achat' ? 'Ach_ .pdf' : 'Vte_ .pdf';
+    return documentType === 'achat' ? 'Ach_.pdf' : 'Vte_.pdf';
   });
   const [date, setDate] = useState(() => {
     const now = new Date();
@@ -39,12 +50,17 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
   const [retentionPercentage, setRetentionPercentage] = useState<number>(100);
   const [usePercentageMode, setUsePercentageMode] = useState<boolean>(false);
   
-  // États pour l'analyse automatique
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [analysisMessage, setAnalysisMessage] = useState('');
+  // États pour l'extraction webhook
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionProgress, setExtractionProgress] = useState(0);
+  const [extractionMessage, setExtractionMessage] = useState('');
   const [extractedData, setExtractedData] = useState<ExtractedDocumentData | null>(null);
-  const [hasAnalyzed, setHasAnalyzed] = useState(false);
+  const [hasExtracted, setHasExtracted] = useState(false);
+  
+  // États pour la configuration webhook
+  const [showWebhookConfig, setShowWebhookConfig] = useState(false);
+  const [showWebhookDiagnostic, setShowWebhookDiagnostic] = useState(false);
+  const [webhookEnabled, setWebhookEnabled] = useState(false);
   
   const { companies } = useCompanies();
   const { selectedCompany, setSelectedCompany } = useCompany();
@@ -52,66 +68,119 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
   const { badges: availableBadges, loading: badgesLoading } = useBudgetBadges(budgetId);
   const [error, setError] = useState<string | null>(null);
 
-  // Fonction d'analyse automatique du document
-  const analyzeDocument = async () => {
-    if (!file || isAnalyzing || hasAnalyzed) return;
+  // Fonction d'extraction via webhook N8n
+  const extractDataWithWebhook = async () => {
+    if (!file || isExtracting) return;
 
-    console.log('🔍 Démarrage de l\'analyse automatique du document...');
-    setIsAnalyzing(true);
-    setAnalysisProgress(0);
-    setAnalysisMessage('Initialisation...');
+    console.log('🔗 Démarrage de l\'extraction via webhook N8n...');
+    setIsExtracting(true);
+    setExtractionProgress(0);
+    setExtractionMessage('Préparation de l\'envoi...');
 
     try {
-      const results = await documentAnalyzer.analyzeDocument(file, documentType, {
-        onProgress: (progress, message) => {
-          setAnalysisProgress(progress);
-          setAnalysisMessage(message);
+      // Simulation de progression
+      setExtractionProgress(20);
+      setExtractionMessage('Conversion du fichier...');
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setExtractionProgress(50);
+      setExtractionMessage('Envoi vers N8n...');
+      
+      const results = await n8nWebhookService.extractDataFromFile(file, documentType);
+      
+      setExtractionProgress(90);
+      setExtractionMessage('Traitement de la réponse...');
+      
+      if (results.success) {
+        // Convertir les résultats webhook vers le format ExtractedDocumentData
+        const convertedResults: ExtractedDocumentData = {
+          companyName: null, // Sera déduit du fileName
+          date: results.date ? new Date(results.date) : null,
+          amount: results.amount,
+          fileName: results.fileName || `${documentType === 'achat' ? 'Ach' : 'Vte'}_document.pdf`,
+          confidence: 85 // Confiance élevée pour les webhooks
+        };
+
+        setExtractedData(convertedResults);
+        setHasExtracted(true);
+
+        // Pré-remplir les champs avec les données extraites
+        if (results.fileName) {
+          setFileName(results.fileName);
+          console.log('✅ Webhook - Nom de fichier pré-rempli:', results.fileName);
         }
-      });
 
-      setExtractedData(results);
-      setHasAnalyzed(true);
+        if (results.date) {
+          setDate(new Date(results.date));
+          console.log('✅ Webhook - Date pré-remplie:', results.date);
+        }
 
-      // Pré-remplir les champs avec les données extraites
-      if (results.fileName) {
-        setFileName(results.fileName);
-        console.log('✅ Nom de fichier pré-rempli:', results.fileName);
+        if (results.amount) {
+          setAmount(results.amount.toString());
+          setTotalAmount(results.amount);
+          setUsePercentageMode(true);
+          console.log('✅ Webhook - Montant pré-rempli:', results.amount);
+        }
+
+        setExtractionProgress(100);
+        setExtractionMessage('Extraction terminée !');
+
+        console.log('✅ Extraction webhook terminée avec succès:', results);
+      } else {
+        throw new Error(results.message || 'Échec de l\'extraction webhook');
       }
-
-      if (results.date) {
-        setDate(results.date);
-        console.log('✅ Date pré-remplie:', results.date);
-      }
-
-             if (results.amount) {
-         setAmount(results.amount.toString());
-         setTotalAmount(results.amount);
-         setUsePercentageMode(true); // Activer le mode pourcentage seulement pour l'analyse automatique
-         console.log('✅ Montant pré-rempli:', results.amount);
-       }
-
-      console.log('✅ Analyse terminée avec succès:', results);
 
     } catch (error) {
-      console.error('❌ Erreur lors de l\'analyse:', error);
-      setAnalysisMessage('Erreur lors de l\'analyse');
-      // En cas d'erreur, on continue avec les valeurs par défaut
+      console.error('❌ Erreur lors de l\'extraction webhook:', error);
+      setExtractionMessage(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      setHasExtracted(false);
     } finally {
-      setIsAnalyzing(false);
+      setIsExtracting(false);
     }
   };
 
-  // Lancer l'analyse automatiquement à l'ouverture du dialog
-  useEffect(() => {
-    if (isOpen && file && !isAnalyzing && !hasAnalyzed) {
-      // Délai pour laisser le dialog s'afficher
-      const timer = setTimeout(() => {
-        analyzeDocument();
-      }, 500);
-      
-      return () => clearTimeout(timer);
+  // Gestionnaire du bouton webhook
+  const handleWebhookExtraction = () => {
+    console.log('🔗 [FileImportDialog] Clic sur bouton webhook');
+    console.log('🔗 [FileImportDialog] Webhook activé:', webhookEnabled);
+    
+    if (!webhookEnabled) {
+      console.log('🔗 [FileImportDialog] Webhook non activé, ouverture de la configuration');
+      // Ouvrir la configuration si le webhook n'est pas activé
+      setShowWebhookConfig(true);
+      return;
     }
-  }, [isOpen, file]);
+
+    console.log('🔗 [FileImportDialog] Lancement de l\'extraction webhook');
+    // Lancer l'extraction via webhook
+    setHasExtracted(false);
+    setExtractedData(null);
+    extractDataWithWebhook();
+  };
+
+  // Gestionnaire de sauvegarde de la configuration webhook
+  const handleWebhookConfigSave = (config: any) => {
+    setWebhookEnabled(config.enabled);
+    if (config.enabled && file) {
+      // Si le webhook vient d'être activé, proposer l'extraction
+      setTimeout(() => {
+        extractDataWithWebhook();
+      }, 500);
+    }
+  };
+
+  // Initialisation au montage
+  useEffect(() => {
+    // Charger la configuration webhook
+    const config = (n8nWebhookService.constructor as any).loadConfig();
+    setWebhookEnabled(config.enabled);
+    
+    // Réinitialiser les préfixes par défaut à l'ouverture
+    if (isOpen && !hasExtracted) {
+      setFileName(documentType === 'achat' ? 'Ach_.pdf' : 'Vte_.pdf');
+    }
+  }, [isOpen, documentType]);
 
      // Fonction pour gérer le changement de montant
    const handleAmountChange = (value: string) => {
@@ -149,19 +218,20 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
      }
    };
 
-   // Nettoyage à la fermeture
-   useEffect(() => {
-     if (!isOpen) {
-       setIsAnalyzing(false);
-       setAnalysisProgress(0);
-       setAnalysisMessage('');
-       setExtractedData(null);
-       setHasAnalyzed(false);
-       setUsePercentageMode(false);
-       setRetentionPercentage(100);
-       setTotalAmount(0);
-     }
-   }, [isOpen]);
+     // Nettoyage à la fermeture
+  useEffect(() => {
+    if (!isOpen) {
+      setIsExtracting(false);
+      setExtractionProgress(0);
+      setExtractionMessage('');
+      setExtractedData(null);
+      setHasExtracted(false);
+      setUsePercentageMode(false);
+      setRetentionPercentage(100);
+      setTotalAmount(0);
+      setShowWebhookConfig(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -238,7 +308,52 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl font-semibold mb-4">Importer le fichier</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Importer le fichier</h2>
+          
+          {/* Boutons Webhook */}
+          <div className="flex items-center space-x-1">
+            {/* Bouton Diagnostic */}
+            <button
+              onClick={() => setShowWebhookDiagnostic(true)}
+              className="flex items-center space-x-1 px-2 py-2 rounded-lg text-sm font-medium bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-colors"
+              title="Diagnostic webhook"
+            >
+              <TestTube className="h-4 w-4" />
+            </button>
+            
+            {/* Bouton Configuration Webhook */}
+            <button
+              onClick={() => setShowWebhookConfig(true)}
+              className="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              title="Configurer le webhook N8n"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Config</span>
+            </button>
+            
+            {/* Bouton Extraction Webhook */}
+            <button
+              onClick={handleWebhookExtraction}
+              disabled={isExtracting}
+              className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                webhookEnabled
+                  ? 'bg-gradient-to-r from-blue-500 to-green-500 text-white shadow-lg'
+                  : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+              } ${
+                isExtracting
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'hover:scale-105'
+              }`}
+              title={webhookEnabled ? 'Extraire les données via webhook N8n' : 'Configurer le webhook pour activer l\'extraction'}
+            >
+              <Globe className={`h-4 w-4 ${isExtracting ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">
+                {webhookEnabled ? (isExtracting ? 'Extraction...' : 'Webhook') : 'Activer'}
+              </span>
+            </button>
+          </div>
+        </div>
         
         {/* Informations sur le fichier */}
         <div className="bg-gray-50 rounded-lg p-3 mb-4">
@@ -258,22 +373,22 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
             </div>
           </div>
           
-          {/* Statut de l'analyse automatique */}
-          {isAnalyzing && (
-            <div className="mt-3 p-2 bg-blue-50 rounded border border-blue-200">
+          {/* Statut de l'extraction webhook */}
+          {isExtracting && (
+            <div className="mt-3 p-2 rounded border bg-gradient-to-r from-blue-50 to-green-50 border-blue-200">
               <div className="flex items-center space-x-2">
-                <Brain className="h-4 w-4 text-blue-600 animate-pulse" />
+                <Globe className="h-4 w-4 text-blue-600 animate-pulse" />
                 <div className="flex-1">
-                  <p className="text-xs text-blue-700 font-medium">
-                    Analyse intelligente en cours...
+                  <p className="text-xs font-medium text-blue-700">
+                    🔗 Extraction via webhook N8n...
                   </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    {analysisMessage}
+                  <p className="text-xs mt-1 text-blue-600">
+                    {extractionMessage}
                   </p>
-                  <div className="mt-2 bg-blue-200 rounded-full h-1.5 overflow-hidden">
+                  <div className="mt-2 rounded-full h-1.5 overflow-hidden bg-blue-200">
                     <div 
-                      className="bg-blue-600 h-full transition-all duration-300"
-                      style={{ width: `${analysisProgress}%` }}
+                      className="h-full transition-all duration-300 bg-gradient-to-r from-blue-500 to-green-500"
+                      style={{ width: `${extractionProgress}%` }}
                     />
                   </div>
                 </div>
@@ -281,35 +396,111 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
             </div>
           )}
 
-          {/* Résultats de l'analyse */}
-          {extractedData && hasAnalyzed && !isAnalyzing && (
-            <div className="mt-3 p-2 bg-green-50 rounded border border-green-200">
+          {/* Résultats de l'extraction webhook */}
+          {hasExtracted && !isExtracting && (
+            <div className={`mt-3 p-3 rounded-lg border ${extractedData && (extractedData.fileName || extractedData.date || extractedData.amount) 
+              ? 'bg-gradient-to-r from-blue-50 to-green-50 border-blue-200'
+              : 'bg-yellow-50 border-yellow-200'}`}>
               <div className="flex items-start space-x-2">
-                <Brain className="h-4 w-4 text-green-600 mt-0.5" />
+                <Globe className={`h-4 w-4 mt-0.5 ${extractedData && (extractedData.fileName || extractedData.date || extractedData.amount) 
+                  ? 'text-blue-600' 
+                  : 'text-yellow-600'}`} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-green-700 font-medium mb-1">
-                    Analyse terminée - Champs pré-remplis
-                  </p>
-                  <div className="space-y-1">
-                    {extractedData.companyName && (
-                      <p className="text-xs text-green-600">
-                        • Entreprise détectée : {extractedData.companyName}
+                  {extractedData && (extractedData.fileName || extractedData.date || extractedData.amount) ? (
+                    <p className="text-sm font-semibold mb-2 text-blue-700">
+                      ✅ Extraction Webhook N8n Terminée
+                    </p>
+                  ) : (
+                    <div>
+                      <p className="text-sm text-yellow-700 font-semibold mb-2">
+                        ⚠️ Webhook Terminé - Extraction Partielle
                       </p>
+                      <p className="text-xs text-yellow-600 mb-2">
+                        Le webhook N8n n'a pas pu extraire toutes les informations. Vérifiez la configuration ou saisissez manuellement.
+                      </p>
+                      <div className="bg-blue-100 p-2 rounded text-xs mb-2">
+                        <p className="font-medium text-blue-800 mb-1">🔗 Suggestion :</p>
+                        <p className="text-blue-700">Vérifiez que votre workflow N8n renvoie les bonnes données au format JSON attendu.</p>
+                      </div>
+                      <div className="bg-yellow-100 p-2 rounded text-xs">
+                        <p className="font-medium text-yellow-800 mb-1">💡 Conseils :</p>
+                        <ul className="text-yellow-700 space-y-1 list-disc list-inside">
+                          <li>Vérifiez l'URL du webhook dans la configuration</li>
+                          <li>Assurez-vous que N8n est bien configuré</li>
+                          <li>Consultez les logs de votre workflow N8n</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    
+                    {/* Entreprise détectée */}
+                    {extractedData?.companyName && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-green-600">
+                          <Building2 className="h-3 w-3 inline mr-1" />
+                          <strong>Entreprise:</strong> {extractedData.companyName}
+                        </p>
+                        <div className="flex items-center space-x-1">
+                          <div className={`w-2 h-2 rounded-full ${getConfidenceColor(extractedData.confidence?.companyName || 0)}`}></div>
+                          <span className="text-xs text-gray-500">
+                            {extractedData.confidence?.companyName || 0}%
+                          </span>
+                        </div>
+                      </div>
                     )}
-                    {extractedData.date && (
-                      <p className="text-xs text-green-600">
-                        • Date détectée : {format(extractedData.date, 'dd/MM/yyyy')}
-                      </p>
+                    
+                    {/* Date détectée */}
+                    {extractedData?.date && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-green-600">
+                          <Calendar className="h-3 w-3 inline mr-1" />
+                          <strong>Date:</strong> {format(extractedData.date, 'dd/MM/yyyy')}
+                        </p>
+                        <div className="flex items-center space-x-1">
+                          <div className={`w-2 h-2 rounded-full ${getConfidenceColor(extractedData.confidence?.date || 0)}`}></div>
+                          <span className="text-xs text-gray-500">
+                            {extractedData.confidence?.date || 0}%
+                          </span>
+                        </div>
+                      </div>
                     )}
-                    {extractedData.amount && (
-                      <p className="text-xs text-green-600">
-                        • Montant détecté : {extractedData.amount.toFixed(2)}€
-                      </p>
+                    
+                    {/* Montant détecté */}
+                    {extractedData?.amount && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-green-600">
+                          <EuroIcon className="h-3 w-3 inline mr-1" />
+                          <strong>Montant:</strong> {extractedData.amount.toFixed(2)}€
+                        </p>
+                        <div className="flex items-center space-x-1">
+                          <div className={`w-2 h-2 rounded-full ${getConfidenceColor(extractedData.confidence?.amount || 0)}`}></div>
+                          <span className="text-xs text-gray-500">
+                            {extractedData.confidence?.amount || 0}%
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Nom de fichier généré */}
+                    {extractedData?.fileName && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-green-600">
+                          <FileText className="h-3 w-3 inline mr-1" />
+                          <strong>Fichier:</strong> <code className="bg-green-100 px-1 rounded text-xs">{extractedData.fileName}</code>
+                        </p>
+                        <span className="text-xs text-blue-600 font-medium">
+                          {documentType === 'achat' ? 'ACH_' : 'VTE_'}
+                        </span>
+                      </div>
                     )}
                   </div>
-                  <p className="text-xs text-green-500 mt-1">
-                    Vous pouvez modifier ces informations si nécessaire.
-                  </p>
+                  
+                  <div className="mt-2 pt-2 border-t border-green-200">
+                    <p className="text-xs text-green-600 font-medium">
+                      💡 Champs automatiquement pré-remplis - Modifiez si nécessaire
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -374,12 +565,39 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
-              {!isAnalyzing && !hasAnalyzed && (
+              {!isExtracting && !hasExtracted && (
                 <button
                   type="button"
-                  onClick={analyzeDocument}
+                  onClick={() => {
+                    // Analyser avec l'OCR traditionnel Tesseract
+                    console.log('🔍 Démarrage OCR Tesseract...');
+                    setIsExtracting(true);
+                    setExtractionMessage('Analyse OCR Tesseract...');
+                    enhancedDocumentAnalyzer.analyzeDocument(file, documentType, {
+                      onProgress: (progress, message) => {
+                        setExtractionProgress(progress);
+                        setExtractionMessage(message);
+                      }
+                    }).then((results) => {
+                      setExtractedData(results);
+                      setHasExtracted(true);
+                      if (results.fileName) setFileName(results.fileName);
+                      if (results.date) setDate(results.date);
+                      if (results.amount) {
+                        setAmount(results.amount.toString());
+                        setTotalAmount(results.amount);
+                        setUsePercentageMode(true);
+                      }
+                      setExtractionMessage('OCR Tesseract terminé !');
+                    }).catch((error) => {
+                      console.error('❌ Erreur OCR Tesseract:', error);
+                      setExtractionMessage('Erreur OCR Tesseract');
+                    }).finally(() => {
+                      setIsExtracting(false);
+                    });
+                  }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-blue-600 hover:text-blue-800 transition-colors"
-                  title="Analyser le document automatiquement"
+                  title="Analyser avec OCR Tesseract (local)"
                 >
                   <Brain className="h-4 w-4" />
                 </button>
@@ -588,6 +806,19 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
             </Button>
           </div>
         </form>
+        
+        {/* Configuration Webhook */}
+        <WebhookConfig
+          isOpen={showWebhookConfig}
+          onClose={() => setShowWebhookConfig(false)}
+          onSave={handleWebhookConfigSave}
+        />
+        
+        {/* Diagnostic Webhook */}
+        <WebhookDiagnostic
+          isOpen={showWebhookDiagnostic}
+          onClose={() => setShowWebhookDiagnostic(false)}
+        />
       </div>
     </div>
   );
