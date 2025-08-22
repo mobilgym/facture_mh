@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Calendar, Building2, EuroIcon, FileText, FileImage, Wallet, Tag, Brain, Loader2, Sparkles, Globe, Settings, TestTube } from 'lucide-react';
+import { Calendar, Building2, EuroIcon, FileText, FileImage, Wallet, Tag, Brain, Loader2, Sparkles, Globe, Settings } from 'lucide-react';
 import { useCompany } from '@/contexts/CompanyContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useCompanies } from '@/hooks/useCompanies';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useBudgetBadges } from '@/hooks/useBudgetBadges';
@@ -12,9 +13,9 @@ import { DocumentType } from './TypeSelectionDialog';
 import { BadgeSelector } from '@/components/badges/BadgeSelector';
 import type { Badge } from '@/types/badge';
 import { enhancedDocumentAnalyzer, ExtractedDocumentData } from '@/lib/services/document/enhancedDocumentAnalyzer';
-import { n8nWebhookService, WebhookExtractedData } from '@/lib/services/webhook/n8nWebhookService';
+import { createN8nWebhookService, WebhookExtractedData } from '@/lib/services/webhook/n8nWebhookService';
+import { WebhookConfiguration } from '@/lib/services/webhook/webhookConfigService';
 import WebhookConfig from '@/components/webhook/WebhookConfig';
-import WebhookDiagnostic from '@/components/webhook/WebhookDiagnostic';
 
 interface FileImportDialogProps {
   file: File;
@@ -33,6 +34,8 @@ const getConfidenceColor = (confidence: number): string => {
 };
 
 export default function FileImportDialog({ file, documentType, isOpen, onClose, onConfirm }: FileImportDialogProps) {
+  const { user } = useAuth();
+  const { currentCompany } = useCompany();
   const [fileName, setFileName] = useState(() => {
     return documentType === 'achat' ? 'Ach_.pdf' : 'Vte_.pdf';
   });
@@ -59,7 +62,6 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
   
   // États pour la configuration webhook
   const [showWebhookConfig, setShowWebhookConfig] = useState(false);
-  const [showWebhookDiagnostic, setShowWebhookDiagnostic] = useState(false);
   const [webhookEnabled, setWebhookEnabled] = useState(false);
   
   const { companies } = useCompanies();
@@ -70,7 +72,7 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
 
   // Fonction d'extraction via webhook N8n
   const extractDataWithWebhook = async () => {
-    if (!file || isExtracting) return;
+    if (!file || isExtracting || !user?.id) return;
 
     console.log('🔗 Démarrage de l\'extraction via webhook N8n...');
     setIsExtracting(true);
@@ -78,8 +80,13 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
     setExtractionMessage('Préparation de l\'envoi...');
 
     try {
-      // Simulation de progression
+      // Créer le service webhook avec l'ID utilisateur
       setExtractionProgress(20);
+      setExtractionMessage('Chargement de la configuration globale...');
+      
+      const webhookService = await createN8nWebhookService(user.id);
+      
+      setExtractionProgress(30);
       setExtractionMessage('Conversion du fichier...');
       
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -87,7 +94,7 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
       setExtractionProgress(50);
       setExtractionMessage('Envoi vers N8n...');
       
-      const results = await n8nWebhookService.extractDataFromFile(file, documentType);
+      const results = await webhookService.extractDataFromFile(file, documentType);
       
       setExtractionProgress(90);
       setExtractionMessage('Traitement de la réponse...');
@@ -160,7 +167,7 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
   };
 
   // Gestionnaire de sauvegarde de la configuration webhook
-  const handleWebhookConfigSave = (config: any) => {
+  const handleWebhookConfigSave = (config: WebhookConfiguration) => {
     setWebhookEnabled(config.enabled);
     if (config.enabled && file) {
       // Si le webhook vient d'être activé, proposer l'extraction
@@ -170,15 +177,29 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
     }
   };
 
+  // Charger la configuration webhook depuis Supabase
+  const loadWebhookConfig = async () => {
+    try {
+      const webhookService = await createN8nWebhookService(user?.id);
+      const isEnabled = webhookService.updateConfig ? true : false; // Vérification basique
+      setWebhookEnabled(isEnabled);
+      console.log('🔗 [FileImportDialog] Configuration webhook globale chargée:', isEnabled);
+    } catch (error) {
+      console.error('❌ [FileImportDialog] Erreur lors du chargement de la config webhook:', error);
+      setWebhookEnabled(false);
+    }
+  };
+
   // Initialisation au montage
   useEffect(() => {
-    // Charger la configuration webhook
-    const config = (n8nWebhookService.constructor as any).loadConfig();
-    setWebhookEnabled(config.enabled);
-    
-    // Réinitialiser les préfixes par défaut à l'ouverture
-    if (isOpen && !hasExtracted) {
-      setFileName(documentType === 'achat' ? 'Ach_.pdf' : 'Vte_.pdf');
+    if (isOpen) {
+      // Charger la configuration webhook depuis Supabase
+      loadWebhookConfig();
+      
+      // Réinitialiser les préfixes par défaut à l'ouverture
+      if (!hasExtracted) {
+        setFileName(documentType === 'achat' ? 'Ach_.pdf' : 'Vte_.pdf');
+      }
     }
   }, [isOpen, documentType]);
 
@@ -313,30 +334,20 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
           
           {/* Boutons Webhook */}
           <div className="flex items-center space-x-1">
-            {/* Bouton Diagnostic */}
-            <button
-              onClick={() => setShowWebhookDiagnostic(true)}
-              className="flex items-center space-x-1 px-2 py-2 rounded-lg text-sm font-medium bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-colors"
-              title="Diagnostic webhook"
-            >
-              <TestTube className="h-4 w-4" />
-            </button>
-            
             {/* Bouton Configuration Webhook */}
             <button
               onClick={() => setShowWebhookConfig(true)}
-              className="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              className="flex items-center justify-center p-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
               title="Configurer le webhook N8n"
             >
               <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Config</span>
             </button>
             
             {/* Bouton Extraction Webhook */}
             <button
               onClick={handleWebhookExtraction}
               disabled={isExtracting}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              className={`flex items-center justify-center p-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                 webhookEnabled
                   ? 'bg-gradient-to-r from-blue-500 to-green-500 text-white shadow-lg'
                   : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
@@ -348,9 +359,6 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
               title={webhookEnabled ? 'Extraire les données via webhook N8n' : 'Configurer le webhook pour activer l\'extraction'}
             >
               <Globe className={`h-4 w-4 ${isExtracting ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">
-                {webhookEnabled ? (isExtracting ? 'Extraction...' : 'Webhook') : 'Activer'}
-              </span>
             </button>
           </div>
         </div>
@@ -812,12 +820,6 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
           isOpen={showWebhookConfig}
           onClose={() => setShowWebhookConfig(false)}
           onSave={handleWebhookConfigSave}
-        />
-        
-        {/* Diagnostic Webhook */}
-        <WebhookDiagnostic
-          isOpen={showWebhookDiagnostic}
-          onClose={() => setShowWebhookDiagnostic(false)}
         />
       </div>
     </div>

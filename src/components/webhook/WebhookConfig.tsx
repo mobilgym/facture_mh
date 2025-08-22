@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, TestTube, CheckCircle, XCircle, Globe, Clock } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { n8nWebhookService, WebhookConfiguration } from '@/lib/services/webhook/n8nWebhookService';
+import { createN8nWebhookService } from '@/lib/services/webhook/n8nWebhookService';
+import { WebhookConfiguration, WebhookConfigService } from '@/lib/services/webhook/webhookConfigService';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface WebhookConfigProps {
   isOpen: boolean;
@@ -10,6 +12,8 @@ interface WebhookConfigProps {
 }
 
 export default function WebhookConfig({ isOpen, onClose, onSave }: WebhookConfigProps) {
+  const { user } = useAuth();
+  
   const [config, setConfig] = useState<WebhookConfiguration>({
     url: '',
     method: 'POST',
@@ -20,6 +24,9 @@ export default function WebhookConfig({ isOpen, onClose, onSave }: WebhookConfig
   });
 
   const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [configId, setConfigId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{
     success: boolean;
     message: string;
@@ -29,16 +36,87 @@ export default function WebhookConfig({ isOpen, onClose, onSave }: WebhookConfig
   // Charger la configuration au montage
   useEffect(() => {
     if (isOpen) {
-      const savedConfig = (n8nWebhookService.constructor as any).loadConfig();
-      setConfig(savedConfig);
-      setTestResult(null);
+      loadConfiguration();
     }
   }, [isOpen]);
 
-  const handleSave = () => {
-    n8nWebhookService.updateConfig(config);
-    onSave(config);
-    onClose();
+  const loadConfiguration = async () => {
+    setIsLoading(true);
+    try {
+      // Charger toutes les configurations pour récupérer l'ID
+      const allConfigs = await WebhookConfigService.getAllConfigurations();
+      
+      if (allConfigs.length > 0) {
+        const activeConfig = allConfigs.find(c => c.is_enabled) || allConfigs[0];
+        setConfigId(activeConfig.id);
+        setConfig({
+          url: activeConfig.webhook_url,
+          method: activeConfig.http_method,
+          headers: activeConfig.headers as Record<string, string> || {},
+          enabled: activeConfig.is_enabled,
+          description: activeConfig.description,
+          lastTestedAt: activeConfig.last_tested_at ? new Date(activeConfig.last_tested_at) : undefined,
+          lastTestSuccess: activeConfig.last_test_success || undefined
+        });
+      } else {
+        // Aucune configuration existante
+        setConfigId(null);
+        setConfig({
+          url: '',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          enabled: false
+        });
+      }
+      
+      setTestResult(null);
+      console.log('🔗 [WebhookConfig] Configuration globale chargée depuis Supabase');
+    } catch (error) {
+      console.error('❌ [WebhookConfig] Erreur lors du chargement:', error);
+      setTestResult({
+        success: false,
+        message: 'Erreur lors du chargement de la configuration',
+        responseTime: 0
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user?.id) {
+      setTestResult({
+        success: false,
+        message: 'Utilisateur non identifié',
+        responseTime: 0
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      if (configId) {
+        // Mettre à jour la configuration existante
+        await WebhookConfigService.updateConfiguration(configId, config, user.id);
+      } else {
+        // Créer une nouvelle configuration
+        const newConfig = await WebhookConfigService.saveConfiguration(config, user.id);
+        setConfigId(newConfig.id);
+      }
+      
+      onSave(config);
+      onClose();
+      console.log('✅ [WebhookConfig] Configuration globale sauvegardée');
+    } catch (error) {
+      console.error('❌ [WebhookConfig] Erreur lors de la sauvegarde:', error);
+      setTestResult({
+        success: false,
+        message: 'Erreur lors de la sauvegarde',
+        responseTime: 0
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleTestConnection = async () => {
@@ -51,15 +129,29 @@ export default function WebhookConfig({ isOpen, onClose, onSave }: WebhookConfig
       return;
     }
 
+    if (!user?.id) {
+      setTestResult({
+        success: false,
+        message: 'Utilisateur non identifié',
+        responseTime: 0
+      });
+      return;
+    }
+
     setIsTestingConnection(true);
     setTestResult(null);
 
     try {
       // Créer une instance temporaire pour le test
-      const tempService = new (n8nWebhookService.constructor as any)(config);
-      const result = await tempService.testConnection();
+      const tempService = await createN8nWebhookService(user.id);
+      tempService.updateConfig(config);
+      
+      const result = await tempService.testConnection(configId || undefined);
       setTestResult(result);
+      
+      console.log('🔗 [WebhookConfig] Test de connexion globale terminé:', result);
     } catch (error) {
+      console.error('❌ [WebhookConfig] Erreur lors du test:', error);
       setTestResult({
         success: false,
         message: error instanceof Error ? error.message : 'Erreur de test',
@@ -75,10 +167,21 @@ export default function WebhookConfig({ isOpen, onClose, onSave }: WebhookConfig
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-auto max-h-[90vh] overflow-y-auto">
+        
+        {/* Loading indicator */}
+        {isLoading && (
+          <div className="flex items-center justify-center p-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-gray-600">Chargement de la configuration...</span>
+          </div>
+        )}
+
+        {!isLoading && (
+          <>
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
             <Settings className="h-6 w-6 text-blue-600" />
-            <h2 className="text-xl font-semibold">Configuration Webhook N8n</h2>
+            <h2 className="text-xl font-semibold">Configuration Webhook N8n (Globale)</h2>
           </div>
           <button
             onClick={onClose}
@@ -96,7 +199,7 @@ export default function WebhookConfig({ isOpen, onClose, onSave }: WebhookConfig
               <div>
                 <h3 className="font-medium text-gray-900">Activer le webhook</h3>
                 <p className="text-sm text-gray-600">
-                  Permet d'envoyer les fichiers vers N8n pour extraction automatique
+                  Configuration globale - accessible à tous les utilisateurs
                 </p>
               </div>
             </div>
@@ -251,16 +354,22 @@ export default function WebhookConfig({ isOpen, onClose, onSave }: WebhookConfig
             type="button"
             variant="outline"
             onClick={onClose}
+            disabled={isSaving}
           >
             Annuler
           </Button>
           <Button
             type="button"
             onClick={handleSave}
+            disabled={isSaving || !config.url.trim()}
           >
-            Sauvegarder
+            {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
           </Button>
         </div>
+        
+        </>
+        )}
+        
       </div>
     </div>
   );

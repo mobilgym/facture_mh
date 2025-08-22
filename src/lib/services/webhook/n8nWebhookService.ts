@@ -1,4 +1,5 @@
 import { TemporaryFileStorage } from './temporaryFileStorage';
+import { WebhookConfigService, WebhookConfiguration } from './webhookConfigService';
 
 export interface WebhookExtractedData {
   fileName: string | null;
@@ -8,52 +9,85 @@ export interface WebhookExtractedData {
   message?: string;
 }
 
-export interface WebhookConfiguration {
-  url: string;
-  method: 'POST' | 'PUT';
-  headers?: Record<string, string>;
-  enabled: boolean;
-}
-
 export class N8nWebhookService {
   private config: WebhookConfiguration;
+  private userId: string | null = null;
 
-  constructor(config: WebhookConfiguration) {
+  constructor(config: WebhookConfiguration, userId?: string) {
     this.config = config;
+    this.userId = userId || null;
   }
 
   // Mettre à jour la configuration du webhook
   updateConfig(config: WebhookConfiguration): void {
     this.config = config;
-    // Sauvegarder dans le localStorage pour persistance
-    localStorage.setItem('webhook_config', JSON.stringify(config));
   }
 
-  // Récupérer la configuration depuis le localStorage
-  static loadConfig(): WebhookConfiguration {
+  // Définir l'ID utilisateur pour les opérations de base de données
+  setUserId(userId: string): void {
+    this.userId = userId;
+  }
+
+  // Récupérer la configuration depuis Supabase
+  static async loadConfig(): Promise<WebhookConfiguration> {
     try {
-      const saved = localStorage.getItem('webhook_config');
-      if (saved) {
-        const config = JSON.parse(saved);
-        console.log('🔗 [Webhook] Configuration chargée:', config);
+      const config = await WebhookConfigService.getActiveConfiguration();
+      
+      if (config) {
+        console.log('🔗 [Webhook] Configuration globale chargée depuis Supabase:', config);
         return config;
+      } else {
+        console.log('🔗 [Webhook] Aucune configuration active trouvée, configuration par défaut utilisée');
+        return {
+          url: '',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          enabled: false
+        };
       }
     } catch (error) {
-      console.error('❌ [Webhook] Erreur lors du chargement de la config:', error);
+      console.error('❌ [Webhook] Erreur lors du chargement depuis Supabase:', error);
+      
+      // Fallback vers localStorage pour migration douce
+      try {
+        const saved = localStorage.getItem('webhook_config');
+        if (saved) {
+          const legacyConfig = JSON.parse(saved);
+          console.log('🔗 [Webhook] Configuration legacy chargée depuis localStorage:', legacyConfig);
+          return legacyConfig;
+        }
+      } catch (legacyError) {
+        console.error('❌ [Webhook] Erreur lors du chargement legacy:', legacyError);
+      }
+      
+      return {
+        url: '',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        enabled: false
+      };
     }
-    
-    // Configuration par défaut
-    const defaultConfig = {
-      url: '',
-      method: 'POST' as const,
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      enabled: false
-    };
-    
-    console.log('🔗 [Webhook] Configuration par défaut utilisée:', defaultConfig);
-    return defaultConfig;
+  }
+
+  // Sauvegarder la configuration dans Supabase
+  async saveConfig(config: WebhookConfiguration): Promise<void> {
+    if (!this.userId) {
+      console.error('❌ [Webhook] User ID manquant pour la sauvegarde');
+      throw new Error('User ID manquant pour sauvegarder la configuration');
+    }
+
+    try {
+      await WebhookConfigService.upsertConfiguration(config, this.userId);
+      this.config = config;
+      console.log('✅ [Webhook] Configuration globale sauvegardée dans Supabase');
+    } catch (error) {
+      console.error('❌ [Webhook] Erreur lors de la sauvegarde:', error);
+      throw new Error('Impossible de sauvegarder la configuration webhook');
+    }
   }
 
   // Envoyer un fichier au webhook N8n pour extraction
@@ -246,7 +280,7 @@ export class N8nWebhookService {
   }
 
   // Tester la connexion webhook
-  async testConnection(): Promise<{ success: boolean; message: string; responseTime: number }> {
+  async testConnection(configId?: string): Promise<{ success: boolean; message: string; responseTime: number }> {
     if (!this.config.url) {
       return {
         success: false,
@@ -256,6 +290,7 @@ export class N8nWebhookService {
     }
 
     const startTime = Date.now();
+    let testResult: { success: boolean; message: string; responseTime: number };
 
     try {
       console.log('🔗 [N8n Webhook] Test de connexion vers:', this.config.url);
@@ -276,13 +311,13 @@ export class N8nWebhookService {
       const responseTime = Date.now() - startTime;
 
       if (response.ok) {
-        return {
+        testResult = {
           success: true,
           message: 'Connexion réussie - CORS configuré correctement',
           responseTime: responseTime
         };
       } else {
-        return {
+        testResult = {
           success: false,
           message: `Erreur HTTP ${response.status}: ${response.statusText}`,
           responseTime: responseTime
@@ -296,32 +331,53 @@ export class N8nWebhookService {
       const errorMessage = error instanceof Error ? error.message : 'Erreur de connexion';
       
       if (errorMessage.includes('CORS')) {
-        return {
+        testResult = {
           success: false,
           message: 'Erreur CORS - Configurez les headers CORS dans votre workflow N8n',
           responseTime: responseTime
         };
+      } else {
+        testResult = {
+          success: false,
+          message: errorMessage,
+          responseTime: responseTime
+        };
       }
-      
-      return {
-        success: false,
-        message: errorMessage,
-        responseTime: responseTime
-      };
     }
+
+    // Enregistrer le résultat du test dans Supabase si possible
+    if (configId && this.userId) {
+      try {
+        await WebhookConfigService.recordTestResult(configId, testResult.success, this.userId);
+      } catch (error) {
+        console.error('❌ [Webhook] Erreur lors de l\'enregistrement du test:', error);
+        // Ne pas bloquer le test pour autant
+      }
+    }
+
+    return testResult;
   }
 }
 
-// Instance globale du service webhook
-let globalConfig = N8nWebhookService.loadConfig();
-export const n8nWebhookService = new N8nWebhookService(globalConfig);
+// Factory pour créer une instance du service webhook avec configuration globale
+export async function createN8nWebhookService(userId?: string): Promise<N8nWebhookService> {
+  const config = await N8nWebhookService.loadConfig();
+  const service = new N8nWebhookService(config, userId);
+  return service;
+}
 
-// Recharger la configuration périodiquement pour s'assurer qu'elle est à jour
-setInterval(() => {
-  const currentConfig = N8nWebhookService.loadConfig();
-  if (JSON.stringify(currentConfig) !== JSON.stringify(globalConfig)) {
-    globalConfig = currentConfig;
-    n8nWebhookService.updateConfig(currentConfig);
-    console.log('🔗 [Webhook] Configuration mise à jour automatiquement');
+// Instance globale du service webhook (sera initialisée dans les composants)
+export let n8nWebhookService: N8nWebhookService | null = null;
+
+// Fonction pour initialiser le service global
+export async function initializeWebhookService(userId?: string): Promise<void> {
+  n8nWebhookService = await createN8nWebhookService(userId);
+}
+
+// Fonction pour obtenir le service (avec gestion d'erreur si non initialisé)
+export function getWebhookService(): N8nWebhookService {
+  if (!n8nWebhookService) {
+    throw new Error('Service webhook non initialisé. Appelez initializeWebhookService() d\'abord.');
   }
-}, 1000);
+  return n8nWebhookService;
+}

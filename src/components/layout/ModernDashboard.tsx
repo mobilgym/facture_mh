@@ -11,6 +11,7 @@ import {
   TrendingUp,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Home,
   FileText,
   Receipt,
@@ -40,7 +41,6 @@ interface QuickStats {
   totalFiles: number;
   totalInvoices: number;
   totalAmount: number;
-  recentUploads: number;
 }
 
 export default function ModernDashboard() {
@@ -54,6 +54,7 @@ export default function ModernDashboard() {
     year: null,
     month: null
   });
+  const [accordionExpanded, setAccordionExpanded] = useState(false);
   
   const toast = useToast();
   const { user } = useAuth();
@@ -75,15 +76,8 @@ export default function ModernDashboard() {
     const filesAmount = files?.reduce((sum, file) => sum + (file.amount || 0), 0) || 0;
     const invoicesAmount = invoices?.reduce((sum, inv) => sum + (inv.amount || 0), 0) || 0;
     const totalAmount = filesAmount + invoicesAmount;
-    
-    const recentUploads = files?.filter(f => {
-      const uploadDate = new Date(f.createdAt);
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      return uploadDate > weekAgo;
-    }).length || 0;
 
-    return { totalFiles, totalInvoices, totalAmount, recentUploads };
+    return { totalFiles, totalInvoices, totalAmount };
   }, [files, invoices]);
 
   // Organize data by periods
@@ -175,6 +169,35 @@ export default function ModernDashboard() {
     if (!selectedPeriod.year || !selectedPeriod.month) return [];
     return files?.filter(f => f.year === selectedPeriod.year && f.month === selectedPeriod.month) || [];
   }, [files, selectedPeriod]);
+
+  // Génération des 12 derniers mois pour l'accordéon
+  const last12Months = useMemo(() => {
+    const months = [];
+    const now = new Date();
+    
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const year = date.getFullYear().toString();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const monthName = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      
+      // Trouver les données pour cette période
+      const periodData = periodsData.find(p => p.year === year && p.month === month);
+      
+      months.push({
+        year,
+        month,
+        monthName,
+        files: periodData?.files || [],
+        invoices: periodData?.invoices || [],
+        filesCount: periodData?.files.length || 0,
+        totalAmount: (periodData?.files.reduce((sum, file) => sum + (file.amount || 0), 0) || 0) +
+                     (periodData?.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0) || 0)
+      });
+    }
+    
+    return months;
+  }, [periodsData]);
 
 
 
@@ -407,7 +430,7 @@ export default function ModernDashboard() {
                   className="space-y-4 md:space-y-6"
                 >
                   {/* Quick Stats */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 lg:gap-6">
                     <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-200">
                       <div className="flex items-center justify-between">
                         <div>
@@ -436,65 +459,118 @@ export default function ModernDashboard() {
                         </div>
                       </div>
                     </div>
-
-                    <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-600">Uploads Récents</p>
-                          <p className="text-2xl font-bold text-gray-900">{stats.recentUploads}</p>
-                        </div>
-                        <div className="p-2 md:p-3 bg-orange-50 rounded-lg">
-                          <Upload className="h-5 w-5 md:h-6 md:w-6 text-orange-600" />
-                        </div>
-                      </div>
-                    </div>
                   </div>
 
-                  {/* Recent Periods Overview */}
+                  {/* Aperçu par période - Accordéon 12 derniers mois */}
                   <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                    <div className="p-4 md:p-6 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900">Aperçu par période</h3>
+                    {/* Header avec bouton accordéon */}
+                    <div 
+                      className="p-4 md:p-6 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => setAccordionExpanded(!accordionExpanded)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Aperçu par période (12 derniers mois)
+                        </h3>
+                        <motion.div
+                          animate={{ rotate: accordionExpanded ? 180 : 0 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <ChevronDown className="h-5 w-5 text-gray-400" />
+                        </motion.div>
+                      </div>
                     </div>
-                    <div className="p-4 md:p-6 space-y-3 md:space-y-4">
-                      {periodsData.slice(0, 6).map((period) => {
-                        // Calculer le montant total pour cette période (files + invoices)
-                        const filesAmount = period.files.reduce((sum, file) => sum + (file.amount || 0), 0);
-                        const invoicesAmount = period.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
-                        const periodAmount = filesAmount + invoicesAmount;
-                        return (
-                          <div
-                            key={`${period.year}-${period.month}`}
-                            className="flex items-center justify-between p-3 md:p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                            onClick={() => {
-                              setSelectedPeriod({ year: period.year, month: period.month });
-                              setContentType('files');
-                            }}
-                          >
-                            <div className="flex items-center space-x-3 md:space-x-4">
-                              <Calendar className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
-                              <span className="font-medium text-gray-900 text-sm md:text-base">{period.monthName}</span>
-                            </div>
-                            <div className="flex items-center space-x-3 md:space-x-6 text-xs md:text-sm text-gray-500">
-                              <span className="flex items-center">
-                                <Receipt className="h-3 w-3 md:h-4 md:w-4 mr-1" />
-                                <span className="hidden sm:inline">{period.files.length} factures</span>
-                                <span className="sm:hidden">{period.files.length}</span>
-                              </span>
-                              {periodAmount > 0 && (
-                                <span className="font-medium text-green-600">
-                                  {new Intl.NumberFormat('fr-FR', {
-                                    style: 'currency',
-                                    currency: 'EUR',
-                                    minimumFractionDigits: 0,
-                                  }).format(periodAmount)}
-                                </span>
-                              )}
-                              <Eye className="h-3 w-3 md:h-4 md:w-4 text-gray-400" />
-                            </div>
+
+                    {/* Contenu accordéon */}
+                    <AnimatePresence>
+                      {accordionExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="p-4 md:p-6 space-y-3 md:space-y-4 max-h-96 overflow-y-auto">
+                            {last12Months.map((month) => (
+                              <motion.div
+                                key={`${month.year}-${month.month}`}
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className={`flex items-center justify-between p-3 md:p-4 rounded-lg cursor-pointer transition-all ${
+                                  selectedPeriod.year === month.year && selectedPeriod.month === month.month
+                                    ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 shadow-sm'
+                                    : month.filesCount > 0
+                                      ? 'bg-gray-50 hover:bg-gray-100 border border-transparent hover:border-gray-200'
+                                      : 'bg-gray-25 border border-transparent opacity-60'
+                                }`}
+                                onClick={() => {
+                                  if (month.filesCount > 0) {
+                                    setSelectedPeriod({ year: month.year, month: month.month });
+                                    setContentType('files');
+                                  }
+                                }}
+                              >
+                                <div className="flex items-center space-x-3 md:space-x-4">
+                                  <Calendar className={`h-4 w-4 md:h-5 md:w-5 ${
+                                    month.filesCount > 0 ? 'text-gray-400' : 'text-gray-300'
+                                  }`} />
+                                  <span className={`font-medium text-sm md:text-base ${
+                                    month.filesCount > 0 ? 'text-gray-900' : 'text-gray-400'
+                                  }`}>
+                                    {month.monthName}
+                                  </span>
+                                </div>
+                                <div className="flex items-center space-x-3 md:space-x-6 text-xs md:text-sm text-gray-500">
+                                  <span className="flex items-center">
+                                    <Receipt className={`h-3 w-3 md:h-4 md:w-4 mr-1 ${
+                                      month.filesCount > 0 ? 'text-gray-400' : 'text-gray-300'
+                                    }`} />
+                                    <span className="hidden sm:inline">
+                                      {month.filesCount} facture{month.filesCount > 1 ? 's' : ''}
+                                    </span>
+                                    <span className="sm:hidden">{month.filesCount}</span>
+                                  </span>
+                                  {month.totalAmount > 0 && (
+                                    <span className="font-medium text-green-600">
+                                      {new Intl.NumberFormat('fr-FR', {
+                                        style: 'currency',
+                                        currency: 'EUR',
+                                        minimumFractionDigits: 0,
+                                      }).format(month.totalAmount)}
+                                    </span>
+                                  )}
+                                  {month.filesCount > 0 && (
+                                    <Eye className="h-3 w-3 md:h-4 md:w-4 text-gray-400" />
+                                  )}
+                                </div>
+                              </motion.div>
+                            ))}
                           </div>
-                        );
-                      })}
-                    </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Résumé rapide (toujours visible) */}
+                    {!accordionExpanded && (
+                      <div className="p-4 md:p-6">
+                        <div className="grid grid-cols-2 gap-4 text-center">
+                          <div>
+                            <p className="text-xs text-gray-500">Mois avec factures</p>
+                            <p className="text-lg font-bold text-blue-600">
+                              {last12Months.filter(m => m.filesCount > 0).length}/12
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Total factures</p>
+                            <p className="text-lg font-bold text-green-600">
+                              {last12Months.reduce((sum, m) => sum + m.filesCount, 0)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
