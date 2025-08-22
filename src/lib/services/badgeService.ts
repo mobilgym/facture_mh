@@ -259,11 +259,11 @@ export class BadgeService {
   }
 
   /**
-   * Assigne des badges à un fichier
+   * Assigne des badges à un fichier avec support pour assignations multiples et pourcentages
    */
   static async assignBadgesToFile(
     fileId: string, 
-    badgeAssignments: { badgeId: string; amountAllocated?: number }[],
+    badgeAssignments: { badgeId: string; amountAllocated?: number; percentage?: number }[],
     userId: string
   ): Promise<void> {
     try {
@@ -359,6 +359,124 @@ export class BadgeService {
       console.log('✅ Badges assignés au fichier avec succès');
     } catch (error) {
       console.error('❌ Erreur dans assignBadgesToFile:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Assigne des badges multiples à un fichier avec répartition par pourcentage et budgets
+   * Nouvelle méthode pour le système d'assignation avancé
+   */
+  static async assignMultipleBudgetsBadgesToFile(
+    fileId: string,
+    multiAssignments: {
+      budgetId: string;
+      badgeId: string;
+      percentage: number;
+      amount: number;
+    }[],
+    userId: string
+  ): Promise<void> {
+    try {
+      console.log('🔄 BadgeService - Assignation multiple avancée pour le fichier:', fileId);
+      console.log('📊 Assignations à traiter:', multiAssignments);
+
+      // Validation : vérifier que les pourcentages ne dépassent pas 100%
+      const totalPercentage = multiAssignments.reduce((sum, assignment) => sum + assignment.percentage, 0);
+      if (totalPercentage > 100) {
+        throw new Error(`Le pourcentage total (${totalPercentage}%) dépasse 100%`);
+      }
+
+      // Récupérer les assignations existantes pour nettoyage
+      const { data: existingAssignments, error: fetchError } = await supabase
+        .from('file_badges')
+        .select('badge_id')
+        .eq('file_id', fileId);
+
+      if (fetchError) {
+        throw new Error(`Erreur lors de la récupération des assignations existantes: ${fetchError.message}`);
+      }
+
+      const existing = existingAssignments || [];
+      console.log('🔍 Assignations existantes trouvées:', existing.length);
+
+      // Identifier tous les budgets qui pourraient être affectés
+      const allAffectedBadgeIds = [
+        ...new Set([
+          ...existing.map(e => e.badge_id),
+          ...multiAssignments.map(a => a.badgeId)
+        ])
+      ];
+
+      // Supprimer toutes les assignations existantes
+      await supabase
+        .from('file_badges')
+        .delete()
+        .eq('file_id', fileId);
+
+      console.log('🗑️ Assignations existantes supprimées');
+
+      // Créer les nouvelles assignations si il y en a
+      if (multiAssignments.length > 0) {
+        const newAssignments = multiAssignments.map(assignment => ({
+          file_id: fileId,
+          badge_id: assignment.badgeId,
+          amount_allocated: assignment.amount,
+          percentage_allocated: assignment.percentage,
+          created_by: userId
+        }));
+
+        const { error: insertError } = await supabase
+          .from('file_badges')
+          .insert(newAssignments);
+
+        if (insertError) {
+          throw new Error(`Erreur lors de l'insertion des nouvelles assignations: ${insertError.message}`);
+        }
+
+        console.log('✅ Nouvelles assignations multiples créées:', newAssignments.length);
+      }
+
+      // Mettre à jour les badge_ids dans la table files pour compatibilité
+      const badgeIds = multiAssignments.map(a => a.badgeId);
+      const { error: updateFileError } = await supabase
+        .from('files')
+        .update({ 
+          badge_ids: badgeIds,
+          // Mettre le budget_id avec le premier budget ou null si aucun
+          budget_id: multiAssignments.length > 0 ? multiAssignments[0].budgetId : null
+        })
+        .eq('id', fileId);
+
+      if (updateFileError) {
+        console.warn('⚠️ Erreur lors de la mise à jour des badge_ids dans files:', updateFileError.message);
+      }
+
+      // Recalculer les montants dépensés pour tous les budgets affectés
+      if (allAffectedBadgeIds.length > 0) {
+        console.log('🔄 Recalcul des budgets affectés par les assignations multiples');
+        
+        // Récupérer tous les budgets qui utilisent ces badges
+        const { data: affectedBudgets, error: budgetsError } = await supabase
+          .from('budget_badges')
+          .select('budget_id')
+          .in('badge_id', allAffectedBadgeIds);
+
+        if (!budgetsError && affectedBudgets) {
+          const uniqueBudgetIds = [...new Set(affectedBudgets.map(bb => bb.budget_id))];
+          
+          console.log('📊 Budgets à recalculer:', uniqueBudgetIds.length);
+          
+          // Recalculer le montant dépensé pour chaque budget affecté
+          for (const budgetId of uniqueBudgetIds) {
+            await this.recalculateBudgetSpentAmount(budgetId);
+          }
+        }
+      }
+
+      console.log('✅ Assignation multiple terminée avec succès');
+    } catch (error) {
+      console.error('❌ Erreur dans assignMultipleBudgetsBadgesToFile:', error);
       throw error;
     }
   }

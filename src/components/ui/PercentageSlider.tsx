@@ -26,12 +26,12 @@ export default function PercentageSlider({
   const [isHovering, setIsHovering] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [showInput, setShowInput] = useState(false);
-  const [inputValue, setInputValue] = useState(percentage.toString());
+  const [inputValue, setInputValue] = useState((percentage ?? 0).toString());
   const sliderRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
 
   // Calcul du montant retenu
-  const retainedAmount = (totalAmount * percentage) / 100;
+  const retainedAmount = ((totalAmount ?? 0) * (percentage ?? 0)) / 100;
   
   // État pour le montant précédent (initialisé après le calcul)
   const [previousAmount, setPreviousAmount] = useState<number>(retainedAmount);
@@ -39,7 +39,7 @@ export default function PercentageSlider({
   // Mettre à jour l'input quand le pourcentage change
   useEffect(() => {
     if (!showInput) {
-      setInputValue(percentage.toString());
+      setInputValue((percentage ?? 0).toString());
     }
   }, [percentage, showInput]);
 
@@ -99,18 +99,18 @@ export default function PercentageSlider({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (disabled) return;
     
-    let newPercentage = percentage;
+    let newPercentage = percentage ?? 0;
     
     switch (e.key) {
       case 'ArrowLeft':
       case 'ArrowDown':
         e.preventDefault();
-        newPercentage = Math.max(0, percentage - (e.shiftKey ? 10 : 1));
+        newPercentage = Math.max(0, (percentage ?? 0) - (e.shiftKey ? 10 : 1));
         break;
       case 'ArrowRight':
       case 'ArrowUp':
         e.preventDefault();
-        newPercentage = Math.min(100, percentage + (e.shiftKey ? 10 : 1));
+        newPercentage = Math.min(100, (percentage ?? 0) + (e.shiftKey ? 10 : 1));
         break;
       case 'Home':
         e.preventDefault();
@@ -122,11 +122,11 @@ export default function PercentageSlider({
         break;
       case 'PageDown':
         e.preventDefault();
-        newPercentage = Math.max(0, percentage - 25);
+        newPercentage = Math.max(0, (percentage ?? 0) - 25);
         break;
       case 'PageUp':
         e.preventDefault();
-        newPercentage = Math.min(100, percentage + 25);
+        newPercentage = Math.min(100, (percentage ?? 0) + 25);
         break;
       default:
         return;
@@ -150,7 +150,7 @@ export default function PercentageSlider({
       handleInputSubmit();
     } else if (e.key === 'Escape') {
       setShowInput(false);
-      setInputValue(percentage.toString());
+      setInputValue((percentage ?? 0).toString());
     }
   };
 
@@ -187,7 +187,7 @@ export default function PercentageSlider({
               disabled={disabled}
               className={`
                 px-2 py-1 text-xs rounded-md transition-all duration-200
-                ${percentage === preset 
+                ${(percentage ?? 0) === preset 
                   ? 'bg-blue-600 text-white shadow-md' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }
@@ -216,17 +216,17 @@ export default function PercentageSlider({
           {/* Progression colorée */}
           <motion.div
             className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
-            style={{ width: `${percentage}%` }}
-            animate={{ width: `${percentage}%` }}
+            style={{ width: `${percentage ?? 0}%` }}
+            animate={{ width: `${percentage ?? 0}%` }}
             transition={{ duration: 0.2, ease: "easeOut" }}
           />
           
           {/* Effet de brillance */}
           <motion.div
             className="absolute top-0 left-0 h-full bg-gradient-to-r from-transparent via-white to-transparent opacity-30"
-            style={{ width: `${percentage}%` }}
+            style={{ width: `${percentage ?? 0}%` }}
             animate={{ 
-              width: `${percentage}%`,
+              width: `${percentage ?? 0}%`,
               opacity: isHovering || isDragging ? 0.4 : 0.2 
             }}
             transition={{ duration: 0.2 }}
@@ -241,7 +241,7 @@ export default function PercentageSlider({
             ${isDragging ? 'cursor-grabbing scale-110 shadow-xl' : ''}
             ${isHovering ? 'scale-105' : ''}
           `}
-          style={{ left: `calc(${percentage}% - 10px)` }}
+          style={{ left: `calc(${percentage ?? 0}% - 10px)` }}
           animate={{ 
             scale: isDragging ? 1.1 : isHovering ? 1.05 : 1,
             boxShadow: isDragging ? '0 10px 25px -5px rgba(0, 0, 0, 0.25)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
@@ -252,8 +252,8 @@ export default function PercentageSlider({
           role="slider"
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={percentage}
-          aria-label={`Pourcentage du montant à retenir: ${percentage}%`}
+          aria-valuenow={percentage ?? 0}
+          aria-label={`Pourcentage du montant à retenir: ${percentage ?? 0}%`}
         >
           {/* Indicateur central */}
           <div className="absolute inset-1 bg-blue-600 rounded-full" />
@@ -267,9 +267,9 @@ export default function PercentageSlider({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               className="absolute -top-12 bg-gray-900 text-white px-3 py-1 rounded-lg text-sm font-medium shadow-lg"
-              style={{ left: `calc(${percentage}% - 25px)` }}
+              style={{ left: `calc(${percentage ?? 0}% - 25px)` }}
             >
-              {percentage}%
+              {percentage ?? 0}%
               <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900" />
             </motion.div>
           )}
@@ -288,7 +288,7 @@ export default function PercentageSlider({
               className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
             >
               <Calculator className="h-4 w-4" />
-              <span>{percentage}%</span>
+              <span>{percentage ?? 0}%</span>
             </button>
           ) : showInput ? (
             <div className="flex items-center space-x-2">
@@ -308,7 +308,7 @@ export default function PercentageSlider({
             </div>
           ) : (
             <div className="px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">
-              {percentage}%
+              {percentage ?? 0}%
             </div>
           )}
         </div>
@@ -332,19 +332,19 @@ export default function PercentageSlider({
         <motion.div
           className="bg-red-500"
           style={{ width: '33.33%' }}
-          animate={{ opacity: percentage <= 33 ? 1 : 0.3 }}
+          animate={{ opacity: (percentage ?? 0) <= 33 ? 1 : 0.3 }}
         />
         {/* Zone orange (33-66%) */}
         <motion.div
           className="bg-orange-500"
           style={{ width: '33.33%' }}
-          animate={{ opacity: percentage > 33 && percentage <= 66 ? 1 : 0.3 }}
+          animate={{ opacity: (percentage ?? 0) > 33 && (percentage ?? 0) <= 66 ? 1 : 0.3 }}
         />
         {/* Zone verte (66-100%) */}
         <motion.div
           className="bg-green-500"
           style={{ width: '33.34%' }}
-          animate={{ opacity: percentage > 66 ? 1 : 0.3 }}
+          animate={{ opacity: (percentage ?? 0) > 66 ? 1 : 0.3 }}
         />
       </div>
     </div>

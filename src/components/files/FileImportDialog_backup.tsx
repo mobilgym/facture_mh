@@ -379,116 +379,128 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Importer le fichier</h2>
+             <div className="bg-white rounded-lg w-full max-w-lg mx-auto max-h-[95vh] overflow-hidden flex flex-col">
+        {/* En-tête compact */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex items-center space-x-3">
+            <h2 className="text-lg font-semibold text-gray-900">Importer le fichier</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors ml-auto"
+            >
+              ✕
+            </button>
+          </div>
           
-          {/* Boutons Webhook */}
+          {/* Boutons Webhook compacts */}
           <div className="flex items-center space-x-1">
-            {/* Bouton Configuration Webhook */}
             <button
               onClick={() => setShowWebhookConfig(true)}
-              className="flex items-center justify-center p-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              className="flex items-center justify-center p-1.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
               title="Configurer le webhook N8n"
             >
-              <Settings className="h-4 w-4" />
+              <Settings className="h-3.5 w-3.5" />
             </button>
             
-                          {/* Bouton Extraction Webhook */}
-              <button
-                onClick={handleWebhookExtraction}
-                disabled={isExtracting || (isFileImage && isProcessing)}
-                className={`flex items-center justify-center p-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  webhookEnabled
-                    ? 'bg-gradient-to-r from-blue-500 to-green-500 text-white shadow-lg'
-                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                } ${
-                  isExtracting || (isFileImage && isProcessing)
-                    ? 'opacity-50 cursor-not-allowed'
-                    : 'hover:scale-105'
-                }`}
-                title={
-                  isFileImage && isProcessing 
-                    ? 'Conversion en cours... Veuillez patienter'
-                    : webhookEnabled 
-                      ? `Extraire les données via webhook N8n${hasConverted ? ' (fichier PDF converti)' : ''}`
-                      : 'Configurer le webhook pour activer l\'extraction'
-                }
-              >
-                <Globe className={`h-4 w-4 ${isExtracting ? 'animate-spin' : ''}`} />
-                {hasConverted && (
-                  <div className="absolute -top-1 -right-1 h-2 w-2 bg-green-500 rounded-full"></div>
-                )}
-              </button>
+            <button
+              onClick={handleWebhookExtraction}
+              disabled={isExtracting || (isFileImage && isProcessing)}
+              className={`relative flex items-center justify-center p-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                webhookEnabled
+                  ? 'bg-gradient-to-r from-blue-500 to-green-500 text-white shadow-md'
+                  : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+              } ${
+                isExtracting || (isFileImage && isProcessing)
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'hover:scale-105'
+              }`}
+              title={
+                isFileImage && isProcessing 
+                  ? 'Conversion en cours...'
+                  : webhookEnabled 
+                    ? `Extraire via N8n${hasConverted ? ' (PDF)' : ''}`
+                    : 'Configurer webhook'
+              }
+            >
+              <Globe className={`h-3.5 w-3.5 ${isExtracting ? 'animate-spin' : ''}`} />
+              {hasConverted && (
+                <div className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 bg-green-400 rounded-full"></div>
+              )}
+            </button>
           </div>
         </div>
         
-        {/* Informations sur le fichier */}
-        <div className="bg-gray-50 rounded-lg p-3 mb-4">
-          <div className="flex items-center space-x-3">
-            {isImageFile(file) ? (
-              <FileImage className="h-5 w-5 text-orange-600" />
-            ) : (
-              <FileText className="h-5 w-5 text-blue-600" />
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {file.name}
-              </p>
-              <p className="text-xs text-gray-500">
-                {getFileTypeDescription(file)} • {(file.size / 1024 / 1024).toFixed(1)} MB
-              </p>
-              
-              {/* Statut de conversion automatique */}
-              {isFileImage && (
-                <div className="mt-2">
-                  {isProcessing ? (
-                    <div className="flex items-center space-x-2">
-                      <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
-                      <span className="text-xs text-blue-600">
-                        {processingMessage} ({processingProgress}%)
-                      </span>
-                    </div>
-                  ) : hasConverted ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                      <span className="text-xs text-green-600">
-                        ✅ Converti en PDF • {(processedSize / 1024 / 1024).toFixed(1)} MB
-                      </span>
-                    </div>
-                  ) : processingError ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="h-2 w-2 bg-red-500 rounded-full"></div>
-                      <span className="text-xs text-red-600">
-                        ❌ Erreur: {processingError}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-2">
-                      <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
-                      <span className="text-xs text-orange-600">
-                        🔄 Conversion en cours...
-                      </span>
-                    </div>
-                  )}
+        {/* Contenu principal avec scroll */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4 space-y-3">
+            
+            {/* Informations sur le fichier - compactes */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <div className="flex items-start space-x-2">
+                {isImageFile(file) ? (
+                  <FileImage className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                ) : (
+                  <FileText className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate leading-tight">
+                    {file.name}
+                  </p>
+                  <p className="text-xs text-gray-500 leading-tight">
+                    {getFileTypeDescription(file)} • {(file.size / 1024 / 1024).toFixed(1)} MB
+                  </p>
                   
-                  {/* Barre de progression */}
-                  {isProcessing && (
-                    <div className="mt-1 w-full bg-gray-200 rounded-full h-1">
-                      <div 
-                        className="bg-blue-500 h-1 rounded-full transition-all duration-300"
-                        style={{ width: `${processingProgress}%` }}
-                      />
+                  {/* Statut de conversion automatique - compact */}
+                  {isFileImage && (
+                    <div className="mt-1">
+                      {isProcessing ? (
+                        <div className="flex items-center space-x-1">
+                          <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
+                          <span className="text-xs text-blue-600 leading-tight">
+                            {processingMessage} ({processingProgress}%)
+                          </span>
+                        </div>
+                      ) : hasConverted ? (
+                        <div className="flex items-center space-x-1">
+                          <div className="h-1.5 w-1.5 bg-green-500 rounded-full"></div>
+                          <span className="text-xs text-green-600 leading-tight">
+                            PDF • {(processedSize / 1024 / 1024).toFixed(1)} MB
+                          </span>
+                        </div>
+                      ) : processingError ? (
+                        <div className="flex items-center space-x-1">
+                          <div className="h-1.5 w-1.5 bg-red-500 rounded-full"></div>
+                          <span className="text-xs text-red-600 leading-tight truncate">
+                            Erreur conversion
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-1">
+                          <div className="h-1.5 w-1.5 bg-orange-500 rounded-full animate-pulse"></div>
+                          <span className="text-xs text-orange-600 leading-tight">
+                            Conversion...
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Barre de progression compacte */}
+                      {isProcessing && (
+                        <div className="mt-1 w-full bg-gray-200 rounded-full h-0.5">
+                          <div 
+                            className="bg-blue-500 h-0.5 rounded-full transition-all duration-300"
+                            style={{ width: `${processingProgress}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
           
-          {/* Statut de l'extraction webhook */}
+          {/* Statut de l'extraction webhook - compact */}
           {isExtracting && (
-            <div className="mt-3 p-2 rounded border bg-gradient-to-r from-blue-50 to-green-50 border-blue-200">
+            <div className="p-2 rounded-lg border bg-gradient-to-r from-blue-50 to-green-50 border-blue-200">
               <div className="flex items-center space-x-2">
                 <Globe className="h-4 w-4 text-blue-600 animate-pulse" />
                 <div className="flex-1">
@@ -629,26 +641,26 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
           )}
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
-              {error}
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {error && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
 
+            {/* Société - compact */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Société
-            </label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Société</label>
             <div className="relative">
-              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Building2 className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <select
                 value={selectedCompany?.id || ''}
                 onChange={(e) => {
                   const company = companies.find(c => c.id === e.target.value);
                   setSelectedCompany(company || null);
                 }}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               >
                 <option value="">Sélectionner une société</option>
@@ -661,12 +673,13 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
             </div>
           </div>
 
+          {/* Nom du fichier - compact */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Nom du fichier
               {extractedData?.companyName && (
-                <span className="text-xs text-green-600 ml-2">
-                  (basé sur: {extractedData.companyName})
+                <span className="text-xs text-green-600 ml-1">
+                  ({extractedData.companyName})
                 </span>
               )}
             </label>
@@ -675,7 +688,7 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
                 type="text"
                 value={fileName}
                 onChange={(e) => setFileName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
               {!isExtracting && !hasExtracted && (
@@ -718,17 +731,18 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
             </div>
           </div>
 
+          {/* Date du document - compact */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Date du document
               {extractedData?.date && (
-                <span className="text-xs text-green-600 ml-2">
-                  (détectée automatiquement)
+                <span className="text-xs text-green-600 ml-1">
+                  (auto)
                 </span>
               )}
             </label>
             <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="date"
                 value={format(date, 'yyyy-MM-dd')}
@@ -737,46 +751,48 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
                   newDate.setHours(0, 0, 0, 0);
                   setDate(newDate);
                 }}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
           </div>
 
-                     <div>
-             <div className="flex items-center justify-between mb-2">
-               <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
-                 <EuroIcon className="h-4 w-4" />
-                 <span>
-                   {usePercentageMode ? 'Montant total' : 'Montant (optionnel)'}
-                   {extractedData?.amount && (
-                     <span className="text-xs text-green-600 ml-2">
-                       (détecté automatiquement)
+          {/* Montant - compact */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-medium text-gray-700 flex items-center space-x-1">
+                <EuroIcon className="h-3 w-3" />
+                <span>
+                  {usePercentageMode ? 'Montant total' : 'Montant (optionnel)'}
+                  {extractedData?.amount && (
+                    <span className="text-xs text-green-600 ml-1">
+                      (auto)
                      </span>
                    )}
                  </span>
                </label>
                
-               {totalAmount > 0 && (
-                 <button
-                   type="button"
-                   onClick={togglePercentageMode}
-                   className={`
-                     text-xs px-3 py-1.5 rounded-md transition-all duration-200 font-medium
-                     ${usePercentageMode 
-                       ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                       : 'bg-blue-100 text-blue-700 hover:bg-blue-200 shadow-sm'
-                     }
-                   `}
-                   title={usePercentageMode ? 'Revenir à la saisie directe' : 'Utiliser un pourcentage du montant'}
-                 >
-                   {usePercentageMode ? '📝 Saisie directe' : '🎛️ Mode %'}
-                 </button>
-               )}
+              {/* Bouton Mode % - compact */}
+              {totalAmount > 0 && (
+                <button
+                  type="button"
+                  onClick={togglePercentageMode}
+                  className={`
+                    text-xs px-2 py-1 rounded transition-all duration-200 font-medium
+                    ${usePercentageMode 
+                      ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                      : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                    }
+                  `}
+                  title={usePercentageMode ? 'Saisie directe' : 'Mode %'}
+                >
+                  {usePercentageMode ? '📝' : '%'}
+                </button>
+              )}
              </div>
              
              <div className="relative">
-               <EuroIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <EuroIcon className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                <input
                  type="number"
                  step="0.01"
@@ -784,11 +800,11 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
                  value={amount}
                  onChange={(e) => handleAmountChange(e.target.value)}
                  placeholder="0.00"
-                 disabled={usePercentageMode}
-                 className={`
-                   w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
-                   ${usePercentageMode ? 'bg-gray-50 cursor-not-allowed' : ''}
-                 `}
+                disabled={usePercentageMode}
+                className={`
+                  w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
+                  ${usePercentageMode ? 'bg-gray-50 cursor-not-allowed' : ''}
+                `}
                />
                {usePercentageMode && (
                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
@@ -834,18 +850,18 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
              )}
            </div>
 
-          {/* Section Budget et Badges - Optionnelle */}
-          <div className="border-t border-gray-200 pt-4">
-            <div className="flex items-center justify-between mb-3">
+          {/* Section Budget et Badges - Compacte */}
+          <div className="border-t border-gray-200 pt-3">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center">
-                <Tag className="h-4 w-4 text-gray-400 mr-2" />
-                <span className="text-sm font-medium text-gray-700">
-                  Attribution budgétaire (optionnel)
+                <Tag className="h-3 w-3 text-gray-400 mr-1" />
+                <span className="text-xs font-medium text-gray-700">
+                  Attribution (optionnel)
                 </span>
               </div>
               
-              {/* Toggle entre mode simple et multiple */}
-              <div className="flex items-center space-x-2">
+              {/* Toggle compact entre mode simple et multiple */}
+              <div className="flex items-center space-x-1">
                 <span className="text-xs text-gray-500">Simple</span>
                 <button
                   type="button"
@@ -860,17 +876,17 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
                       setMultiAssignments([]);
                     }
                   }}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  className={`relative inline-flex h-4 w-8 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                     useMultiAssignment ? 'bg-blue-600' : 'bg-gray-200'
                   }`}
                 >
                   <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      useMultiAssignment ? 'translate-x-5' : 'translate-x-0'
+                    className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      useMultiAssignment ? 'translate-x-4' : 'translate-x-0'
                     }`}
                   />
                 </button>
-                <span className="text-xs text-gray-500">Multiple</span>
+                <span className="text-xs text-gray-500">Multi</span>
               </div>
             </div>
 
@@ -892,17 +908,17 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
             ) : (
               /* Mode Simple */
               <div>
-                {/* Sélection du Budget */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                {/* Sélection du Budget - compact */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Budget
                   </label>
                   <div className="relative">
-                    <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Wallet className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <select
                       value={budgetId || ''}
                       onChange={(e) => handleBudgetChange(e.target.value || null)}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       disabled={budgetsLoading || !selectedCompany}
                     >
                       <option value="">Aucun budget sélectionné</option>
@@ -923,10 +939,10 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
                   )}
                 </div>
 
-                {/* Sélection des Badges */}
+                {/* Sélection des Badges - compact */}
                 {budgetId && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Badges
                     </label>
                     <div className="space-y-2">
@@ -952,32 +968,38 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
               </div>
             )}
           </div>
-
-          <div className="flex flex-col sm:flex-row justify-end gap-3 sm:space-x-3 sm:space-y-0">
+        </div>
+        
+        {/* Pied de page fixe */}
+        <div className="border-t border-gray-200 p-4 bg-gray-50">
+          <div className="flex justify-end space-x-2">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="w-full sm:w-auto order-2 sm:order-1"
+              size="sm"
+              className="px-4"
             >
               Annuler
             </Button>
             <Button
               type="submit"
-              className="w-full sm:w-auto order-1 sm:order-2"
+              size="sm"
+              className="px-6"
             >
               Importer
             </Button>
           </div>
-        </form>
-        
-        {/* Configuration Webhook */}
-        <WebhookConfig
-          isOpen={showWebhookConfig}
-          onClose={() => setShowWebhookConfig(false)}
-          onSave={handleWebhookConfigSave}
-        />
-      </div>
+        </div>
+      </form>
+    </div>
+    
+    {/* Configuration Webhook */}
+    <WebhookConfig
+      isOpen={showWebhookConfig}
+      onClose={() => setShowWebhookConfig(false)}
+      onSave={handleWebhookConfigSave}
+    />
     </div>
   );
 }

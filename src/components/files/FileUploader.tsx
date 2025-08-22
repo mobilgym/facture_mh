@@ -150,9 +150,9 @@ export default function FileUploader({ folderId, onSuccess }: FileUploaderProps)
               setSelectedType(null);
               setError(null);
             }}
-            onConfirm={async (fileName, date, amount, budgetId, badgeIds) => {
+            onConfirm={async (processedFile, fileName, date, amount, budgetId, badgeIds, multiAssignments) => {
               try {
-                await upload(fileToImport, fileName, date, amount, budgetId, badgeIds);
+                await upload(processedFile, fileName, date, amount, budgetId, badgeIds, multiAssignments);
                 onSuccess();
                 setFileToImport(null);
                 setSelectedType(null);

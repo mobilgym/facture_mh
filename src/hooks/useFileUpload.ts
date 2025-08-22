@@ -19,7 +19,8 @@ export function useFileUpload(folderId: string | null = null) {
     date: Date, 
     amount: number | null, 
     budgetId?: string | null, 
-    badgeIds?: string[]
+    badgeIds?: string[],
+    multiAssignments?: any[]
   ) => {
     if (!user) {
       throw new UploadError('Utilisateur non authentifié');
@@ -36,31 +37,8 @@ export function useFileUpload(folderId: string | null = null) {
       let processedFile = file;
       let processedFileName = fileName;
 
-      // Vérifier si c'est une image et la convertir en PDF si nécessaire
-      if (isImageFile(file)) {
-        console.log(`Conversion de l'image ${file.name} en PDF...`);
-        setConverting(true);
-        
-        try {
-          // Convertir l'image en PDF avec une qualité élevée (0.9)
-          processedFile = await processFileForUpload(file, 0.9);
-          
-          // Mettre à jour le nom du fichier pour qu'il ait l'extension .pdf
-          if (!processedFileName.toLowerCase().endsWith('.pdf')) {
-            const nameWithoutExtension = processedFileName.replace(/\.[^/.]+$/, '');
-            processedFileName = `${nameWithoutExtension}.pdf`;
-          }
-          
-          console.log(`Image convertie avec succès: ${processedFile.name}`);
-        } catch (conversionError) {
-          console.error('Erreur lors de la conversion:', conversionError);
-          throw new UploadError(
-            `Impossible de convertir l'image en PDF: ${conversionError instanceof Error ? conversionError.message : 'Erreur inconnue'}`
-          );
-        } finally {
-          setConverting(false);
-        }
-      }
+      // Le fichier est maintenant déjà prétraité en amont
+      console.log(`Upload du fichier prétraité: ${file.name}`);
 
       const year = date.getFullYear().toString();
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -80,20 +58,35 @@ export function useFileUpload(folderId: string | null = null) {
         onProgress: (p) => setProgress(p)
       });
 
-      // Si des badges sont sélectionnés, les assigner au fichier uploadé
-      if (result && badgeIds && badgeIds.length > 0 && amount) {
-        console.log('🏷️ Assignation des badges au fichier uploadé:', badgeIds);
-        
-        // Calculer le montant par badge (répartition équitable)
-        const amountPerBadge = amount / badgeIds.length;
-        
-        const badgeAssignments = badgeIds.map(badgeId => ({
-          badgeId,
-          amountAllocated: amountPerBadge
-        }));
+      // Gérer les assignations selon le mode (simple ou multiple)
+      if (result) {
+        if (multiAssignments && multiAssignments.length > 0) {
+          // Mode assignation multiple avec pourcentages
+          console.log('🔄 Assignation multiple avec pourcentages:', result.id);
+          
+          const assignments = multiAssignments.map(assignment => ({
+            budgetId: assignment.budgetId,
+            badgeId: assignment.badgeId,
+            percentage: assignment.percentage,
+            amount: assignment.amount
+          }));
 
-        await BadgeService.assignBadgesToFile(result.id, badgeAssignments, user.id);
-        console.log('✅ Badges assignés avec succès au fichier uploadé');
+          await BadgeService.assignMultipleBudgetsBadgesToFile(result.id, assignments, user.id);
+          console.log('✅ Assignations multiples créées avec succès');
+        } else if (badgeIds && badgeIds.length > 0 && amount) {
+          // Mode simple avec répartition équitable
+          console.log('🏷️ Assignation simple des badges au fichier uploadé:', badgeIds);
+          
+          const amountPerBadge = amount / badgeIds.length;
+          
+          const badgeAssignments = badgeIds.map(badgeId => ({
+            badgeId,
+            amountAllocated: amountPerBadge
+          }));
+
+          await BadgeService.assignBadgesToFile(result.id, badgeAssignments, user.id);
+          console.log('✅ Badges assignés avec succès au fichier');
+        }
       }
 
       return result;
