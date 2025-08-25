@@ -8,6 +8,7 @@ import FileActions from './FileActions';
 import FileTotal from './FileTotal';
 import { FileEditModal } from './FileEditModal';
 import FloatingActionBar from './FloatingActionBar';
+import DeleteFileDialog from './DeleteFileDialog';
 import Button from '@/components/ui/Button';
 import Tooltip from '@/components/ui/Tooltip';
 import type { FileItem } from '@/types/file';
@@ -52,6 +53,8 @@ export default function FileGrid({
   const [editing, setEditing] = useState<EditingState | null>(null);
   const [editingFile, setEditingFile] = useState<FileItem | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Hooks pour récupérer les données des budgets et badges
   const { budgets } = useBudgets();
@@ -147,6 +150,32 @@ export default function FileGrid({
 
   const handleFileDeleted = () => {
     onUpdate();
+  };
+
+  const handleDeleteClick = (file: FileItem) => {
+    setSelectedFile(file);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedFile || !onDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await onDelete(selectedFile);
+      setShowDeleteModal(false);
+      setSelectedFile(null);
+      onUpdate();
+    } catch (error) {
+      console.error('Erreur lors de la suppression du fichier:', error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setSelectedFile(null);
   };
 
   const container = {
@@ -433,7 +462,7 @@ export default function FileGrid({
                   <div className="mt-3 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onClick={(e) => e.stopPropagation()}>
                     <FileActions
                       file={file}
-                      onDelete={() => setSelectedFile(file)}
+                      onDelete={() => handleDeleteClick(file)}
                     />
                   </div>
                 </div>
@@ -465,6 +494,15 @@ export default function FileGrid({
           onBudgetExpenseUpdated={onBudgetExpenseUpdated}
         />
       )}
+
+      {/* Modal de confirmation de suppression */}
+      <DeleteFileDialog
+        file={selectedFile}
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        isDeleting={isDeleting}
+      />
     </>
   );
 }

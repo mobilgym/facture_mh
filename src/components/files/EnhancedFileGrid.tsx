@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import FileGrid from './FileGrid';
+import FileTabsWithTotals from './FileTabsWithTotals';
 import AdvancedSearch, { SearchFilters } from './AdvancedSearch';
 import BulkActionModal from './BulkActionModal';
 import type { FileItem } from '@/types/file';
@@ -216,8 +216,8 @@ export default function EnhancedFileGrid({
         selectedCount={selectedFiles.length}
       />
 
-      {/* Grille de fichiers améliorée */}
-      <FileGrid
+      {/* Grille de fichiers avec onglets par type */}
+      <FileTabsWithTotals
         files={filteredFiles}
         onDelete={onDelete}
         onUpdate={onUpdate}
