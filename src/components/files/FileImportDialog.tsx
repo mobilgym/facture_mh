@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Calendar, Building2, EuroIcon, FileText, FileImage, Wallet, Tag, Brain, Loader2, Sparkles, Globe, Settings } from 'lucide-react';
+import { Calendar, Building2, EuroIcon, FileText, FileImage, Tag, Brain, Loader2, Globe, Settings } from 'lucide-react';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompanies } from '@/hooks/useCompanies';
@@ -10,10 +10,12 @@ import { isImageFile, getFileTypeDescription } from '@/lib/utils/imageConverter'
 import Button from '@/components/ui/Button';
 import PercentageSlider from '@/components/ui/PercentageSlider';
 import { DocumentType } from './TypeSelectionDialog';
-import { BadgeSelector } from '@/components/badges/BadgeSelector';
+// import { BadgeSelector } from '@/components/badges/BadgeSelector';
+import { BudgetBubbleSelector } from '@/components/budgets/BudgetBubbleSelector';
+import { BadgeBubbleSelector } from '@/components/badges/BadgeBubbleSelector';
 import type { Badge } from '@/types/badge';
 import { enhancedDocumentAnalyzer, ExtractedDocumentData } from '@/lib/services/document/enhancedDocumentAnalyzer';
-import { createN8nWebhookService, WebhookExtractedData } from '@/lib/services/webhook/n8nWebhookService';
+import { createN8nWebhookService } from '@/lib/services/webhook/n8nWebhookService';
 import { WebhookConfiguration } from '@/lib/services/webhook/webhookConfigService';
 import WebhookConfig from '@/components/webhook/WebhookConfig';
 import MultiAssignmentManager, { AssignmentItem } from './MultiAssignmentManager';
@@ -37,7 +39,7 @@ const getConfidenceColor = (confidence: number): string => {
 
 export default function FileImportDialog({ file, documentType, isOpen, onClose, onConfirm }: FileImportDialogProps) {
   const { user } = useAuth();
-  const { currentCompany } = useCompany();
+  // const { currentCompany } = useCompany();
   const [fileName, setFileName] = useState(() => {
     return documentType === 'achat' ? 'Ach_.pdf' : 'Vte_.pdf';
   });
@@ -48,7 +50,9 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
   });
   const [amount, setAmount] = useState<string>('');
   const [budgetId, setBudgetId] = useState<string | null>(null);
+  const [selectedBudget, setSelectedBudget] = useState<any | null>(null);
   const [badgeIds, setBadgeIds] = useState<string[]>([]);
+  const [selectedBadges, setSelectedBadges] = useState<Badge[]>([]);
   
   // États pour le système de pourcentage
   const [totalAmount, setTotalAmount] = useState<number>(0);
@@ -72,15 +76,12 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
   
   // Hook pour la conversion automatique du fichier
   const {
-    originalFile,
-    processedFile,
     isProcessing,
     hasConverted,
     processingProgress,
     processingMessage,
     error: processingError,
     isImageFile: isFileImage,
-    originalSize,
     processedSize,
     fileToUse
   } = useFilePreprocessor(file, { autoConvert: true, quality: 0.9 });
@@ -88,7 +89,7 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
   const { companies } = useCompanies();
   const { selectedCompany, setSelectedCompany } = useCompany();
   const { budgets, loading: budgetsLoading } = useBudgets();
-  const { badges: availableBadges, loading: badgesLoading } = useBudgetBadges(budgetId);
+  const { badges: availableBadges, loading: badgesLoading } = useBudgetBadges(budgetId || undefined);
   const [error, setError] = useState<string | null>(null);
 
   // Fonction d'extraction via webhook N8n
@@ -123,11 +124,15 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
       if (results.success) {
         // Convertir les résultats webhook vers le format ExtractedDocumentData
         const convertedResults: ExtractedDocumentData = {
-          companyName: null, // Sera déduit du fileName
-          date: results.date ? new Date(results.date) : null,
-          amount: results.amount,
+          companyName: results.fileName || undefined, // Sera déduit du fileName
+          date: results.date ? new Date(results.date) : undefined,
+          amount: results.amount || undefined,
           fileName: results.fileName || `${documentType === 'achat' ? 'Ach' : 'Vte'}_document.pdf`,
-          confidence: 85 // Confiance élevée pour les webhooks
+          confidence: {
+            companyName: 85,
+            date: 85,
+            amount: 85
+          }
         };
 
         setExtractedData(convertedResults);
@@ -202,7 +207,7 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
   const loadWebhookConfig = async () => {
     try {
       const webhookService = await createN8nWebhookService(user?.id);
-      const isEnabled = webhookService.updateConfig ? true : false; // Vérification basique
+      const isEnabled = !!webhookService; // Vérification basique
       setWebhookEnabled(isEnabled);
       console.log('🔗 [FileImportDialog] Configuration webhook globale chargée:', isEnabled);
     } catch (error) {
@@ -278,33 +283,52 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
 
   if (!isOpen) return null;
 
-  const handleBudgetChange = (newBudgetId: string | null) => {
-    setBudgetId(newBudgetId);
-    // Réinitialiser les badges si le budget change
-    setBadgeIds([]);
-  };
+  // const handleBudgetChange = (newBudgetId: string | null) => {
+  //   setBudgetId(newBudgetId);
+  //   // Réinitialiser les badges si le budget change
+  //   setBadgeIds([]);
+  // };
 
   const handleBadgeSelect = (badge: Badge) => {
     if (!badgeIds.includes(badge.id)) {
       setBadgeIds([...badgeIds, badge.id]);
+      setSelectedBadges(prev => [...prev, badge]);
     }
   };
 
   const handleBadgeRemove = (badgeId: string) => {
     setBadgeIds(badgeIds.filter(id => id !== badgeId));
+    setSelectedBadges(prev => prev.filter(badge => badge.id !== badgeId));
+  };
+
+  // Nouvelles fonctions pour les sélecteurs en bulles
+  const handleBudgetSelectNew = (budget: any) => {
+    setSelectedBudget(budget);
+    setBudgetId(budget.id);
+    // Réinitialiser les badges si le budget change
+    setBadgeIds([]);
+    setSelectedBadges([]);
+  };
+
+  const handleBudgetRemove = () => {
+    setSelectedBudget(null);
+    setBudgetId(null);
+    // Réinitialiser les badges
+    setBadgeIds([]);
+    setSelectedBadges([]);
   };
 
   // Filtre temporaire - tous les budgets pour diagnostic
   const activeBudgets = budgets?.filter(budget => budget.is_active === true) || [];
   // Si toujours vide, essayons tous les budgets
   const allBudgetsIfNeeded = activeBudgets.length === 0 ? (budgets || []) : activeBudgets;
-  const selectedBadges = availableBadges?.filter(badge => badgeIds.includes(badge.id)) || [];
+  // const selectedBadgesFromIds = availableBadges?.filter(badge => badgeIds.includes(badge.id)) || [];
 
   // Debug logs (temporaire)
   console.log('🔍 FileImportDialog - selectedCompany:', selectedCompany);
   console.log('🔍 FileImportDialog - budgets total:', budgets?.length);
   console.log('🔍 FileImportDialog - budgets data:', budgets);
-  console.log('🔍 FileImportDialog - premier budget status:', budgets?.[0]?.status);
+  // console.log('🔍 FileImportDialog - premier budget status:', budgets?.[0]?.status);
   console.log('🔍 FileImportDialog - premier budget is_active:', budgets?.[0]?.is_active);
   console.log('🔍 FileImportDialog - structure du premier budget:', Object.keys(budgets?.[0] || {}));
   console.log('🔍 FileImportDialog - activeBudgets count:', activeBudgets.length);
@@ -893,31 +917,17 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
               /* Mode Simple */
               <div>
                 {/* Sélection du Budget */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Budget
-                  </label>
-                  <div className="relative">
-                    <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <select
-                      value={budgetId || ''}
-                      onChange={(e) => handleBudgetChange(e.target.value || null)}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={budgetsLoading || !selectedCompany}
-                    >
-                      <option value="">Aucun budget sélectionné</option>
-                      {allBudgetsIfNeeded.map(budget => (
-                        <option key={budget.id} value={budget.id}>
-                          {budget.name} ({(budget.initial_amount - budget.spent_amount).toFixed(2)}€ disponible)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {budgetsLoading && (
-                    <p className="text-xs text-gray-500 mt-1">Chargement des budgets...</p>
-                  )}
+                <div className="mb-6">
+                  <BudgetBubbleSelector
+                    budgets={allBudgetsIfNeeded}
+                    selectedBudget={selectedBudget}
+                    onBudgetSelect={handleBudgetSelectNew}
+                    onBudgetRemove={handleBudgetRemove}
+                    loading={budgetsLoading}
+                    disabled={!selectedCompany}
+                  />
                   {!budgetsLoading && (!allBudgetsIfNeeded || allBudgetsIfNeeded.length === 0) && (
-                    <p className="text-xs text-amber-600 mt-1">
+                    <p className="text-xs text-amber-600 mt-2">
                       Aucun budget actif disponible. Vous pouvez en créer dans la section "Budgets et Dépenses".
                     </p>
                   )}
@@ -926,23 +936,16 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
                 {/* Sélection des Badges */}
                 {budgetId && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Badges
-                    </label>
-                    <div className="space-y-2">
-                      <BadgeSelector
-                        selectedBadges={selectedBadges}
-                        availableBadges={availableBadges || []}
-                        onBadgeSelect={handleBadgeSelect}
-                        onBadgeRemove={handleBadgeRemove}
-                        placeholder="Aucun badge sélectionné"
-                      />
-                    </div>
-                    {badgesLoading && (
-                      <p className="text-xs text-gray-500 mt-1">Chargement des badges...</p>
-                    )}
+                    <BadgeBubbleSelector
+                      badges={availableBadges || []}
+                      selectedBadges={selectedBadges}
+                      onBadgeSelect={handleBadgeSelect}
+                      onBadgeRemove={handleBadgeRemove}
+                      loading={badgesLoading}
+                      disabled={!budgetId}
+                    />
                     {budgetId && (!availableBadges || availableBadges.length === 0) && !badgesLoading && (
-                      <p className="text-xs text-amber-600 mt-1">
+                      <p className="text-xs text-amber-600 mt-2">
                         Aucun badge disponible pour ce budget. 
                         Vous pouvez en créer dans la section "Budgets et Dépenses".
                       </p>
