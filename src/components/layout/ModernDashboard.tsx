@@ -48,6 +48,17 @@ export default function ModernDashboard() {
   const toast = useToast();
   const { user } = useAuth();
   
+  // Fonction pour gérer la sélection de période avec basculement automatique vers factures en mobile
+  const handlePeriodSelect = (period: { year: string; month: string }) => {
+    setSelectedPeriod(period);
+    
+    // En mobile (< lg), basculer automatiquement vers les factures
+    const isMobile = window.innerWidth < 1024; // lg breakpoint
+    if (isMobile && period.year && period.month) {
+      setContentType('files');
+    }
+  };
+
   // Data hooks
   const { files, loading: loadingFiles, error: errorFiles, refetch: refetchFiles } = useFiles(
     selectedPeriod.year && selectedPeriod.month ? selectedPeriod : {}
@@ -278,7 +289,7 @@ export default function ModernDashboard() {
               <YearlyNavigation 
                 periodsData={periodsData} 
                 selectedPeriod={selectedPeriod}
-                onPeriodSelect={setSelectedPeriod}
+                onPeriodSelect={handlePeriodSelect}
               />
             ) : (
               <div className="space-y-2">
@@ -291,7 +302,7 @@ export default function ModernDashboard() {
                         ? 'bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200'
                         : 'hover:bg-gray-50 border border-transparent'
                     }`}
-                    onClick={() => setSelectedPeriod({ year: period.year, month: period.month })}
+                    onClick={() => handlePeriodSelect({ year: period.year, month: period.month })}
                   >
                     <div className="flex flex-col items-center">
                       <Calendar className="h-4 w-4 text-gray-600" />
@@ -440,8 +451,12 @@ export default function ModernDashboard() {
                                 }`}
                                 onClick={() => {
                                   if (month.filesCount > 0) {
-                                    setSelectedPeriod({ year: month.year, month: month.month });
-                                    setContentType('files');
+                                    handlePeriodSelect({ year: month.year, month: month.month });
+                                    // Pour desktop, basculer vers les factures explicitement
+                                    const isMobile = window.innerWidth < 1024;
+                                    if (!isMobile) {
+                                      setContentType('files');
+                                    }
                                   }
                                 }}
                               >

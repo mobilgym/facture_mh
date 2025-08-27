@@ -3,7 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { LogOut, Building2, FolderOpen, Layers, User, Menu, X, DollarSign, BarChart3, RefreshCcw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '../ui/Button';
-import CompanySelector from '../company/CompanySelector';
+import CompactCompanySelector from '../company/CompactCompanySelector';
 
 export default function Header() {
   const navigate = useNavigate();
@@ -63,7 +63,7 @@ export default function Header() {
           {/* Actions - Desktop */}
           {user && (
             <div className="hidden md:flex items-center space-x-4">
-              <CompanySelector />
+              <CompactCompanySelector />
               
               <div className="h-6 w-px bg-gray-200" />
               
@@ -86,18 +86,21 @@ export default function Header() {
             </div>
           )}
 
-          {/* Menu Button - Mobile */}
+          {/* Mobile Actions */}
           {user && (
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 rounded-md text-gray-600 hover:text-cyan-600 hover:bg-gradient-to-r hover:from-cyan-50 hover:to-blue-50"
-            >
-              {isMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
-            </button>
+            <div className="md:hidden flex items-center space-x-2">
+              <CompactCompanySelector />
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2 rounded-md text-gray-600 hover:text-cyan-600 hover:bg-gradient-to-r hover:from-cyan-50 hover:to-blue-50"
+              >
+                {isMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </button>
+            </div>
           )}
         </div>
 
@@ -123,11 +126,7 @@ export default function Header() {
             </div>
 
             <div className="py-2 border-t border-gray-200">
-              <div className="px-4 py-2">
-                <CompanySelector />
-              </div>
-              
-              <div className="mt-2 px-4 py-2 flex items-center justify-between">
+              <div className="px-4 py-2 flex items-center justify-between">
                 <div className="flex items-center">
                   <div className="h-8 w-8 rounded-full bg-gradient-to-r from-cyan-100 to-blue-100 flex items-center justify-center">
                     <User className="h-4 w-4 text-cyan-600" />

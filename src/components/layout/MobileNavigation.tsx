@@ -148,6 +148,8 @@ export default function MobileNavigation({
                       key={`${period.year}-${period.month}`}
                       onClick={() => {
                         onPeriodSelect(period.year, period.month);
+                        // Basculer automatiquement vers les factures en mobile
+                        onContentTypeChange('files');
                         setIsOpen(false);
                       }}
                     >
@@ -159,6 +161,8 @@ export default function MobileNavigation({
                         }
                         onClick={() => {
                           onPeriodSelect(period.year, period.month);
+                          // Basculer automatiquement vers les factures en mobile
+                          onContentTypeChange('files');
                           setIsOpen(false);
                         }}
                         compact
