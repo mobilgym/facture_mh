@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Upload, Trash2, DollarSign, Tag, Calendar, Building } from 'lucide-react';
+import { X, Save, Upload, Trash2, DollarSign, Tag, Calendar } from 'lucide-react';
 import type { FileItem } from '../../types/file';
 import type { Badge } from '../../types/badge';
 import { useBudgets } from '../../hooks/useBudgets';
@@ -10,7 +10,8 @@ import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
 import { useBudgetNotification } from '../../contexts/BudgetNotificationContext';
 import { BadgeService } from '../../lib/services/badgeService';
-import { BadgeSelector } from '../badges/BadgeSelector';
+import { BadgeBubbleSelector } from '../badges/BadgeBubbleSelector';
+import { BudgetBubbleSelector } from '../budgets/BudgetBubbleSelector';
 
 interface FileEditModalProps {
   file: FileItem;
@@ -47,6 +48,8 @@ export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDele
   const { badges: budgetBadges } = useBudgetBadges(formData.budget_id);
   const [availableBadges, setAvailableBadges] = useState<Badge[]>([]);
   const [selectedBadges, setSelectedBadges] = useState<Badge[]>([]);
+  const [selectedBadgesForBubbles, setSelectedBadgesForBubbles] = useState<Badge[]>([]);
+  const [selectedBudget, setSelectedBudget] = useState<any>(null);
   const { selectedCompany } = useCompany();
   const { success: showSuccess, error: showError } = useToast();
   const { notifyBudgetChange } = useBudgetNotification();
@@ -103,6 +106,10 @@ export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDele
         badge_ids: file.badge_ids || []
       });
       
+      // Mettre à jour le budget sélectionné pour les billes
+      const currentBudget = budgets.find(budget => budget.id === file.budget_id);
+      setSelectedBudget(currentBudget || null);
+      
       // Marquer comme initialisé après un délai pour permettre aux autres useEffect de s'exécuter
       setTimeout(() => {
         setIsInitialized(true);
@@ -115,6 +122,7 @@ export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDele
   useEffect(() => {
     const badges = availableBadges.filter(badge => formData.badge_ids.includes(badge.id));
     setSelectedBadges(badges);
+    setSelectedBadgesForBubbles(badges);
   }, [formData.badge_ids, availableBadges]);
 
   // Effet spécial pour assurer que les badges sont bien disponibles après le chargement
@@ -156,6 +164,40 @@ export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDele
     setFormData(prev => ({
       ...prev,
       badge_ids: prev.badge_ids.filter(id => id !== badgeId)
+    }));
+  };
+
+  // Nouveaux gestionnaires pour le système de billes
+  const handleBadgeSelectNew = (badge: Badge) => {
+    setSelectedBadgesForBubbles(prev => [...prev, badge]);
+    setFormData(prev => ({
+      ...prev,
+      badge_ids: [...prev.badge_ids, badge.id]
+    }));
+  };
+
+  const handleBadgeRemoveNew = (badgeId: string) => {
+    setSelectedBadgesForBubbles(prev => prev.filter(badge => badge.id !== badgeId));
+    setFormData(prev => ({
+      ...prev,
+      badge_ids: prev.badge_ids.filter(id => id !== badgeId)
+    }));
+  };
+
+  // Gestionnaires pour le budget
+  const handleBudgetSelectNew = (budget: any) => {
+    setSelectedBudget(budget);
+    setFormData(prev => ({
+      ...prev,
+      budget_id: budget.id
+    }));
+  };
+
+  const handleBudgetRemoveNew = () => {
+    setSelectedBudget(null);
+    setFormData(prev => ({
+      ...prev,
+      budget_id: null
     }));
   };
 
@@ -418,39 +460,25 @@ export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDele
 
           {/* Budget */}
           <div>
-            <label htmlFor="budget_id" className="block text-sm font-medium text-gray-700 mb-1">
-              Budget
-            </label>
-            <div className="relative">
-              <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <select
-                id="budget_id"
-                value={formData.budget_id || ''}
-                onChange={(e) => handleInputChange('budget_id', e.target.value || null)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Aucun budget</option>
-                {budgets.map((budget) => (
-                  <option key={budget.id} value={budget.id}>
-                    {budget.name} ({new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(budget.remaining_amount)} restant)
-                  </option>
-                ))}
-              </select>
-            </div>
+            <BudgetBubbleSelector
+              budgets={budgets}
+              selectedBudget={selectedBudget}
+              onBudgetSelect={handleBudgetSelectNew}
+              onBudgetRemove={handleBudgetRemoveNew}
+              disabled={isLoading}
+              className="w-full"
+            />
           </div>
 
           {/* Badges */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Badges
-            </label>
-            <BadgeSelector
-              availableBadges={availableBadges}
-              selectedBadges={selectedBadges}
-              onBadgeSelect={handleBadgeSelect}
-              onBadgeRemove={handleBadgeRemove}
-              placeholder="Sélectionner des badges..."
+            <BadgeBubbleSelector
+              badges={availableBadges}
+              selectedBadges={selectedBadgesForBubbles}
+              onBadgeSelect={handleBadgeSelectNew}
+              onBadgeRemove={handleBadgeRemoveNew}
               disabled={isLoading}
+              className="w-full"
             />
             {formData.budget_id && availableBadges.length === 0 && (
               <p className="mt-1 text-sm text-gray-500">

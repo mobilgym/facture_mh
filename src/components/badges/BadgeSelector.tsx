@@ -94,7 +94,7 @@ export function BadgeSelector({
 
         {/* Dropdown */}
         {isOpen && !disabled && canAddMore && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-hidden">
+          <div className="absolute z-50 w-full bottom-full mb-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-hidden">
             {/* Barre de recherche */}
             <div className="p-3 border-b border-gray-100">
               <div className="relative">
