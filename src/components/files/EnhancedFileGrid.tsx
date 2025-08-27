@@ -52,36 +52,87 @@ export default function EnhancedFileGrid({
   // Filtrage des fichiers en fonction de la recherche
   const filteredFiles = useMemo(() => {
     return files.filter(file => {
-      // Filtre par nom de fichier
-      if (searchFilters.search && !file.name.toLowerCase().includes(searchFilters.search.toLowerCase())) {
-        return false;
+      // Recherche textuelle étendue (nom, montant, date)
+      if (searchFilters.search) {
+        const searchTerm = searchFilters.search.toLowerCase();
+        const fileName = file.name.toLowerCase();
+        const fileAmount = file.amount ? file.amount.toString() : '';
+        const fileDate = file.document_date ? new Date(file.document_date).toLocaleDateString('fr-FR') : '';
+        
+        const matchesSearch = fileName.includes(searchTerm) || 
+                             fileAmount.includes(searchTerm) || 
+                             fileDate.includes(searchTerm);
+        
+        if (!matchesSearch) {
+          return false;
+        }
       }
 
       // Filtres par date
-      if (searchFilters.dateMode && searchFilters.dateFrom) {
+      if (searchFilters.dateMode) {
         const fileDate = new Date(file.document_date);
-        const filterDate = new Date(searchFilters.dateFrom);
-
+        
         switch (searchFilters.dateMode) {
           case 'exact':
-            if (fileDate.toDateString() !== filterDate.toDateString()) {
-              return false;
+            if (searchFilters.dateFrom) {
+              const filterDate = new Date(searchFilters.dateFrom);
+              if (fileDate.toDateString() !== filterDate.toDateString()) {
+                return false;
+              }
             }
             break;
           case 'before':
-            if (fileDate > filterDate) {
-              return false;
+            if (searchFilters.dateFrom) {
+              const filterDate = new Date(searchFilters.dateFrom);
+              if (fileDate > filterDate) {
+                return false;
+              }
             }
             break;
           case 'after':
-            if (fileDate < filterDate) {
-              return false;
+            if (searchFilters.dateFrom) {
+              const filterDate = new Date(searchFilters.dateFrom);
+              if (fileDate < filterDate) {
+                return false;
+              }
             }
             break;
           case 'between':
-            if (searchFilters.dateTo) {
+            if (searchFilters.dateFrom && searchFilters.dateTo) {
+              const fromDate = new Date(searchFilters.dateFrom);
               const toDate = new Date(searchFilters.dateTo);
-              if (fileDate < filterDate || fileDate > toDate) {
+              if (fileDate < fromDate || fileDate > toDate) {
+                return false;
+              }
+            }
+            break;
+          case 'year':
+            if (searchFilters.year) {
+              const fileYear = fileDate.getFullYear();
+              if (fileYear !== parseInt(searchFilters.year)) {
+                return false;
+              }
+            }
+            break;
+          case 'month':
+            if (searchFilters.year && searchFilters.month) {
+              const fileYear = fileDate.getFullYear();
+              const fileMonth = fileDate.getMonth() + 1; // getMonth() returns 0-11
+              if (fileYear !== parseInt(searchFilters.year) || 
+                  fileMonth !== parseInt(searchFilters.month)) {
+                return false;
+              }
+            }
+            break;
+          case 'quarter':
+            if (searchFilters.year && searchFilters.quarter) {
+              const fileYear = fileDate.getFullYear();
+              const fileMonth = fileDate.getMonth() + 1;
+              const fileQuarter = Math.ceil(fileMonth / 3);
+              const selectedQuarter = parseInt(searchFilters.quarter.substring(1)); // "Q1" -> 1
+              
+              if (fileYear !== parseInt(searchFilters.year) || 
+                  fileQuarter !== selectedQuarter) {
                 return false;
               }
             }

@@ -9,8 +9,11 @@ export interface SearchFilters {
   amountMin: string;
   amountMax: string;
   amountExact: string;
-  dateMode: 'before' | 'after' | 'between' | 'exact' | '';
+  dateMode: 'before' | 'after' | 'between' | 'exact' | 'year' | 'month' | 'quarter' | '';
   amountMode: 'exact' | 'greater' | 'less' | 'between' | '';
+  year?: string;
+  month?: string;
+  quarter?: string;
 }
 
 interface AdvancedSearchProps {
@@ -34,7 +37,10 @@ export default function AdvancedSearch({
     amountMax: '',
     amountExact: '',
     dateMode: '',
-    amountMode: ''
+    amountMode: '',
+    year: '',
+    month: '',
+    quarter: ''
   });
 
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -59,7 +65,10 @@ export default function AdvancedSearch({
       amountMax: '',
       amountExact: '',
       dateMode: '',
-      amountMode: ''
+      amountMode: '',
+      year: '',
+      month: '',
+      quarter: ''
     };
     setFilters(emptyFilters);
   };
@@ -78,7 +87,7 @@ export default function AdvancedSearch({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Rechercher par nom de fichier..."
+              placeholder="Rechercher par nom, montant, date, ou contenu..."
               value={filters.search}
               onChange={(e) => handleFilterChange('search', e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
@@ -151,6 +160,9 @@ export default function AdvancedSearch({
                   <option value="before">Avant le</option>
                   <option value="after">Après le</option>
                   <option value="between">Entre deux dates</option>
+                  <option value="year">Année complète</option>
+                  <option value="month">Mois spécifique</option>
+                  <option value="quarter">Trimestre</option>
                 </select>
 
                 {filters.dateMode === 'exact' && (
@@ -188,6 +200,94 @@ export default function AdvancedSearch({
                       className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                       placeholder="Date de fin"
                     />
+                  </div>
+                )}
+
+                {filters.dateMode === 'year' && (
+                  <select
+                    value={filters.year || ''}
+                    onChange={(e) => handleFilterChange('year', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    <option value="">Sélectionner une année</option>
+                    {Array.from({ length: 10 }, (_, i) => {
+                      const year = new Date().getFullYear() - i;
+                      return (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
+
+                {filters.dateMode === 'month' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <select
+                      value={filters.year || ''}
+                      onChange={(e) => handleFilterChange('year', e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    >
+                      <option value="">Année</option>
+                      {Array.from({ length: 10 }, (_, i) => {
+                        const year = new Date().getFullYear() - i;
+                        return (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <select
+                      value={filters.month || ''}
+                      onChange={(e) => handleFilterChange('month', e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    >
+                      <option value="">Mois</option>
+                      <option value="01">Janvier</option>
+                      <option value="02">Février</option>
+                      <option value="03">Mars</option>
+                      <option value="04">Avril</option>
+                      <option value="05">Mai</option>
+                      <option value="06">Juin</option>
+                      <option value="07">Juillet</option>
+                      <option value="08">Août</option>
+                      <option value="09">Septembre</option>
+                      <option value="10">Octobre</option>
+                      <option value="11">Novembre</option>
+                      <option value="12">Décembre</option>
+                    </select>
+                  </div>
+                )}
+
+                {filters.dateMode === 'quarter' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <select
+                      value={filters.year || ''}
+                      onChange={(e) => handleFilterChange('year', e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    >
+                      <option value="">Année</option>
+                      {Array.from({ length: 10 }, (_, i) => {
+                        const year = new Date().getFullYear() - i;
+                        return (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <select
+                      value={filters.quarter || ''}
+                      onChange={(e) => handleFilterChange('quarter', e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    >
+                      <option value="">Trimestre</option>
+                      <option value="Q1">T1 (Jan-Mar)</option>
+                      <option value="Q2">T2 (Avr-Juin)</option>
+                      <option value="Q3">T3 (Juil-Sep)</option>
+                      <option value="Q4">T4 (Oct-Déc)</option>
+                    </select>
                   </div>
                 )}
               </div>

@@ -53,26 +53,11 @@ export default function MobileNavigation({
           </Button>
         </div>
 
-        {/* Quick Tabs */}
+        {/* Quick Tabs - Only Factures */}
         <div className="flex mt-3 bg-gray-100 rounded-lg p-1">
           <button
-            onClick={() => onContentTypeChange('overview')}
-            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-              contentType === 'overview'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600'
-            }`}
-          >
-            <Home className="h-4 w-4 mx-auto mb-1" />
-            Vue
-          </button>
-          <button
             onClick={() => onContentTypeChange('files')}
-            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-              contentType === 'files'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600'
-            }`}
+            className="flex-1 py-2 px-3 rounded-md text-sm font-medium bg-white text-gray-900 shadow-sm"
           >
             <Receipt className="h-4 w-4 mx-auto mb-1" />
             Factures

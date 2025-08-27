@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { LogOut, Building2, FolderOpen, Layers, User, Menu, X, DollarSign, BarChart3 } from 'lucide-react';
+import { LogOut, Building2, FolderOpen, Layers, User, Menu, X, DollarSign, BarChart3, RefreshCcw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '../ui/Button';
 import CompanySelector from '../company/CompanySelector';
@@ -21,7 +21,8 @@ export default function Header() {
   const menuItems = [
     { path: '/', icon: FolderOpen, label: 'Documents' },
     { path: '/companies', icon: Building2, label: 'Sociétés' },
-    { path: '/budgets', icon: BarChart3, label: 'Budgets' }
+    { path: '/budgets', icon: BarChart3, label: 'Budgets' },
+    { path: '/lettrage', icon: RefreshCcw, label: 'Lettrage' }
   ];
 
   return (

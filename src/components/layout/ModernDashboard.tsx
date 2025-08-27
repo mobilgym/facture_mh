@@ -1,19 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FolderOpen, 
-  Upload, 
-  Search, 
-  Filter, 
-  Grid3X3, 
-  List, 
   Calendar, 
   TrendingUp,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   Home,
-  FileText,
   Receipt,
   Eye,
   Plus,
@@ -33,9 +26,7 @@ import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { FileItem } from '@/types/file';
 
-type ViewMode = 'grid' | 'list';
 type ContentType = 'files' | 'overview';
-type FilterMode = 'all' | 'recent' | 'date' | 'amount';
 
 interface QuickStats {
   totalFiles: number;
@@ -47,9 +38,7 @@ export default function ModernDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [contentType, setContentType] = useState<ContentType>('overview');
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterMode, setFilterMode] = useState<FilterMode>('all');
+
   const [selectedPeriod, setSelectedPeriod] = useState<{year: string | null, month: string | null}>({
     year: null,
     month: null
@@ -342,78 +331,22 @@ export default function ModernDashboard() {
                   )}
                 </div>
                 
-                {/* Content Type Tabs - Hidden on small screens */}
+                {/* Content Type Tabs - Only Factures */}
                 <div className="hidden sm:flex bg-gray-100 rounded-lg p-1">
                   <button
-                    onClick={() => setContentType('overview')}
-                    className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                      contentType === 'overview'
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Vue d'ensemble
-                  </button>
-                  <button
                     onClick={() => setContentType('files')}
-                    className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                      contentType === 'files'
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                    className="px-3 py-1 rounded-md text-sm font-medium bg-white text-gray-900 shadow-sm"
                   >
                     Factures ({filteredCurrentFiles.length})
                   </button>
                 </div>
 
-                {/* Mobile Content Type Selector */}
+                {/* Mobile Content Type - Only Factures */}
                 <div className="sm:hidden">
-                  <select
-                    value={contentType}
-                    onChange={(e) => setContentType(e.target.value as ContentType)}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                  >
-                    <option value="overview">Vue d'ensemble</option>
-                    <option value="files">Factures ({filteredCurrentFiles.length})</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* View Controls */}
-              <div className="flex items-center space-x-2 md:space-x-3">
-                {/* Search - Responsive */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-32 sm:w-48 md:w-auto pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
-                  />
-                </div>
-
-                {/* View Mode Toggle - Hidden on small screens */}
-                {(contentType === 'files' || contentType === 'overview') && (
-                  <div className="hidden sm:flex bg-gray-100 rounded-lg">
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      className={`p-2 rounded-l-lg ${
-                        viewMode === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
-                      }`}
-                    >
-                      <Grid3X3 className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={`p-2 rounded-r-lg ${
-                        viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
-                      }`}
-                    >
-                      <List className="h-4 w-4" />
-                    </button>
+                  <div className="px-3 py-2 bg-gray-100 rounded-md text-sm text-gray-900">
+                    Factures ({filteredCurrentFiles.length})
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </header>

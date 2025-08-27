@@ -241,8 +241,8 @@ export default function FileGrid({
                   </div>
                 )}
 
-                {/* Indicateurs de budget et badges avec tooltips */}
-                <div className="absolute top-2 right-2 flex space-x-1">
+                {/* Indicateurs de budget, badges et lettrage en bas à droite */}
+                <div className="absolute bottom-2 right-2 flex space-x-1">
                   {file.budget_id && (
                     <Tooltip
                       content={
@@ -316,11 +316,35 @@ export default function FileGrid({
                       )}
                     </div>
                   )}
+                  
+                  {/* Icône de lettrage si la facture est lettrée */}
+                  {file.is_lettree && (
+                    <Tooltip
+                      content={
+                        <div className="text-center">
+                          <div className="font-medium">Lettrage validé</div>
+                          {file.lettrage_date && (
+                            <div className="text-xs mt-1">
+                              {new Date(file.lettrage_date).toLocaleDateString('fr-FR')}
+                            </div>
+                          )}
+                        </div>
+                      }
+                      position="bottom"
+                    >
+                      <div className="bg-gradient-to-br from-green-400 to-green-600 backdrop-blur-sm rounded-full p-1 shadow-sm border border-green-300 ring-1 ring-white/20">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                          <path d="M9 12l2 2 4-4"/>
+                          <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.01 0 3.84.66 5.33 1.78"/>
+                        </svg>
+                      </div>
+                    </Tooltip>
+                  )}
                 </div>
 
-                <div className="p-3">
+                <div className="p-2 pb-8">
                   {/* En-tête compact */}
-                  <div className="flex items-start space-x-2 mb-3">
+                  <div className="flex items-start space-x-2 mb-2">
                     <div className="flex-shrink-0">
                       <div className="p-2 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg">
                         <FileText className="h-4 w-4 text-blue-600" />
@@ -341,7 +365,7 @@ export default function FileGrid({
                   </div>
 
                   {/* Métadonnées compactes */}
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     {/* Date */}
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center text-gray-500">
@@ -459,7 +483,7 @@ export default function FileGrid({
                   </div>
 
                   {/* Actions en bas */}
-                  <div className="mt-3 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onClick={(e) => e.stopPropagation()}>
+                  <div className="mt-2 pt-1 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onClick={(e) => e.stopPropagation()}>
                     <FileActions
                       file={file}
                       onDelete={() => handleDeleteClick(file)}
