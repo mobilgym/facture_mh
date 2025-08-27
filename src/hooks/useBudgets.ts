@@ -97,6 +97,20 @@ export function useBudgets() {
     }
   };
 
+  // Activer/désactiver un budget
+  const toggleBudgetStatus = async (budgetId: string, isActive: boolean): Promise<boolean> => {
+    try {
+      await BudgetService.toggleBudgetStatus(budgetId, isActive);
+      showSuccess(`Budget ${isActive ? 'activé' : 'désactivé'} avec succès`);
+      await loadBudgets(); // Recharger la liste
+      return true;
+    } catch (error) {
+      console.error('Erreur lors du changement de statut du budget:', error);
+      showError(error instanceof Error ? error.message : 'Erreur lors du changement de statut du budget');
+      return false;
+    }
+  };
+
   // Supprimer un budget
   const deleteBudget = async (budgetId: string): Promise<boolean> => {
     try {
@@ -162,6 +176,7 @@ export function useBudgets() {
     createBudget,
     updateBudget,
     archiveBudget,
+    toggleBudgetStatus,
     deleteBudget,
     reactivateBudget,
     getBudgetById,

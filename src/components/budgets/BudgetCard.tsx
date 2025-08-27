@@ -1,5 +1,6 @@
 import React from 'react';
 import { Edit, Archive, Trash2, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { ToggleSwitch } from '../ui/ToggleSwitch';
 import type { BudgetWithStats } from '../../types/budget';
 
 interface BudgetCardProps {
@@ -7,10 +8,11 @@ interface BudgetCardProps {
   onEdit: (budget: BudgetWithStats) => void;
   onArchive: (budgetId: string) => void;
   onDelete: (budgetId: string) => void;
+  onToggleStatus: (budgetId: string, isActive: boolean) => void;
   onClick?: (budget: BudgetWithStats) => void;
 }
 
-export function BudgetCard({ budget, onEdit, onArchive, onDelete, onClick }: BudgetCardProps) {
+export function BudgetCard({ budget, onEdit, onArchive, onDelete, onToggleStatus, onClick }: BudgetCardProps) {
   const handleCardClick = () => {
     if (onClick) {
       onClick(budget);
@@ -30,6 +32,10 @@ export function BudgetCard({ budget, onEdit, onArchive, onDelete, onClick }: Bud
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDelete(budget.id);
+  };
+
+  const handleToggleStatus = (isActive: boolean) => {
+    onToggleStatus(budget.id, isActive);
   };
 
   const getProgressColor = () => {
@@ -59,32 +65,49 @@ export function BudgetCard({ budget, onEdit, onArchive, onDelete, onClick }: Bud
 
   return (
     <div 
-      className={`bg-white rounded-lg shadow-md border hover:shadow-lg transition-shadow cursor-pointer ${
+      className={`bg-white rounded-lg shadow-md border hover:shadow-lg transition-shadow cursor-pointer relative ${
         budget.is_over_budget ? 'border-red-300' : 'border-gray-200'
-      }`}
+      } ${!budget.is_active ? 'opacity-75 bg-gray-50' : ''}`}
       onClick={handleCardClick}
     >
-      <div className="p-6">
+      {/* Toggle switch en haut à droite */}
+      <div className="absolute top-4 right-4 z-10">
+        <ToggleSwitch
+          enabled={budget.is_active}
+          onChange={handleToggleStatus}
+          size="sm"
+          className="shadow-sm"
+        />
+      </div>
+
+      <div className="p-6 pr-16">
         {/* En-tête */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              {budget.name}
-            </h3>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className={`text-lg font-semibold ${budget.is_active ? 'text-gray-900' : 'text-gray-500'}`}>
+                {budget.name}
+              </h3>
+              {!budget.is_active && (
+                <span className="px-2 py-1 text-xs font-medium bg-gray-200 text-gray-600 rounded-full">
+                  Désactivé
+                </span>
+              )}
+            </div>
             {budget.description && (
-              <p className="text-sm text-gray-600 line-clamp-2">
+              <p className={`text-sm line-clamp-2 ${budget.is_active ? 'text-gray-600' : 'text-gray-500'}`}>
                 {budget.description}
               </p>
             )}
           </div>
           
-          {/* Alertes */}
-          {budget.is_over_budget && (
+          {/* Alertes (seulement si actif) */}
+          {budget.is_active && budget.is_over_budget && (
             <div className="flex items-center text-red-600 ml-2">
               <AlertTriangle className="h-5 w-5" />
             </div>
           )}
-          {budget.percentage_used >= 80 && !budget.is_over_budget && (
+          {budget.is_active && budget.percentage_used >= 80 && !budget.is_over_budget && (
             <div className="flex items-center text-yellow-600 ml-2">
               <AlertTriangle className="h-5 w-5" />
             </div>

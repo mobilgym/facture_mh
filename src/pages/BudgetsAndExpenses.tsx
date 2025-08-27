@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
-import { Plus, AlertTriangle, TrendingUp, PieChart, BarChart3 } from 'lucide-react';
+import { Plus, AlertTriangle, TrendingUp, PieChart, BarChart3, Wallet } from 'lucide-react';
 import { BudgetCard } from '../components/budgets/BudgetCard';
 import { BudgetDetails } from '../components/budgets/BudgetDetails';
 import { BudgetForm } from '../components/budgets/BudgetForm';
 import { BadgeCard } from '../components/badges/BadgeCard';
 import { BadgeForm } from '../components/badges/BadgeForm';
 import { BadgeAnalysis } from '../components/analysis/BadgeAnalysis';
+import { TreasuryCard } from '../components/treasury/TreasuryCard';
+import { VteInvoicesList } from '../components/treasury/VteInvoicesList';
 import { useBudgets } from '../hooks/useBudgets';
 import { useBadges } from '../hooks/useBadges';
+import { useTreasury } from '../hooks/useTreasury';
 import { useAuth } from '../contexts/AuthContext';
 import { useCompany } from '../contexts/CompanyContext';
 import type { BudgetWithStats, CreateBudgetForm } from '../types/budget';
 import type { BadgeWithStats, CreateBadgeForm } from '../types/badge';
 
-type TabType = 'budgets' | 'badges' | 'analysis';
+type TabType = 'budgets' | 'badges' | 'analysis' | 'treasury';
 
 export function BudgetsAndExpenses() {
   const [activeTab, setActiveTab] = useState<TabType>('budgets');
@@ -33,6 +36,7 @@ export function BudgetsAndExpenses() {
     createBudget,
     updateBudget,
     archiveBudget,
+    toggleBudgetStatus,
     deleteBudget
   } = useBudgets();
 
@@ -45,6 +49,19 @@ export function BudgetsAndExpenses() {
     deleteBadge,
     reactivateBadge
   } = useBadges();
+
+  const {
+    treasury,
+    loading: treasuryLoading,
+    totalBudgets: treasuryTotalBudgets,
+    remainingBudgets,
+    totalVteInvoices,
+    globalTreasury,
+    activeBudgetsCount,
+    vteInvoicesCount,
+    vteInvoices,
+    refreshTreasury
+  } = useTreasury();
 
   // Gestion des budgets
   const handleCreateBudget = async (data: CreateBudgetForm, badgeIds?: string[]) => {
@@ -62,6 +79,8 @@ export function BudgetsAndExpenses() {
     if (newBudget) {
       console.log('✅ Budget créé avec succès:', newBudget);
       setShowBudgetForm(false);
+      // Rafraîchir la trésorerie après création d'un budget
+      await refreshTreasury();
     } else {
       console.error('❌ Échec de la création du budget');
     }
@@ -77,6 +96,8 @@ export function BudgetsAndExpenses() {
       await updateBudget(editingBudget.id, data);
       setEditingBudget(null);
       setShowBudgetForm(false);
+      // Rafraîchir la trésorerie après modification d'un budget
+      await refreshTreasury();
     }
   };
 
@@ -127,11 +148,12 @@ export function BudgetsAndExpenses() {
     }
   };
 
-  // Statistiques générales
-  const totalBudget = budgets.reduce((sum, budget) => sum + budget.initial_amount, 0);
-  const totalSpent = budgets.reduce((sum, budget) => sum + budget.spent_amount, 0);
+  // Statistiques générales (budgets actifs uniquement)
+  const activeBudgets = budgets.filter(budget => budget.is_active);
+  const totalBudget = activeBudgets.reduce((sum, budget) => sum + budget.initial_amount, 0);
+  const totalSpent = activeBudgets.reduce((sum, budget) => sum + budget.spent_amount, 0);
   const totalRemaining = totalBudget - totalSpent;
-  const overBudgetCount = budgets.filter(budget => budget.is_over_budget).length;
+  const overBudgetCount = activeBudgets.filter(budget => budget.is_over_budget).length;
 
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('fr-FR', {
@@ -175,7 +197,7 @@ export function BudgetsAndExpenses() {
         )}
 
         {/* Statistiques globales */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 rounded-lg">
@@ -227,6 +249,22 @@ export function BudgetsAndExpenses() {
               </div>
             </div>
           </div>
+
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg shadow-sm border border-blue-200 p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-600 rounded-lg">
+                <Wallet className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Trésorerie Globale</p>
+                <p className={`text-2xl font-semibold ${
+                  globalTreasury >= 0 ? 'text-blue-600' : 'text-red-600'
+                }`}>
+                  {formatAmount(globalTreasury)}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Onglets */}
@@ -241,7 +279,7 @@ export function BudgetsAndExpenses() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Budgets ({budgets.length})
+                Budgets ({activeBudgets.length}/{budgets.length})
               </button>
               <button
                 onClick={() => setActiveTab('badges')}
@@ -262,6 +300,17 @@ export function BudgetsAndExpenses() {
                 }`}
               >
                 Analyse
+              </button>
+              <button
+                onClick={() => setActiveTab('treasury')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'treasury'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Wallet className="h-4 w-4 inline mr-1" />
+                Trésorerie
               </button>
             </nav>
           </div>
@@ -315,6 +364,7 @@ export function BudgetsAndExpenses() {
                     budget={budget}
                     onEdit={handleEditBudget}
                     onArchive={archiveBudget}
+                    onToggleStatus={toggleBudgetStatus}
                     onDelete={deleteBudget}
                     onClick={() => setSelectedBudget(budget)}
                   />
@@ -382,6 +432,95 @@ export function BudgetsAndExpenses() {
 
         {activeTab === 'analysis' && (
           <BadgeAnalysis />
+        )}
+
+        {activeTab === 'treasury' && (
+          <div>
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">
+                Trésorerie Globale
+              </h2>
+              
+              {treasuryLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-gray-600">Chargement de la trésorerie...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Carte principale de trésorerie */}
+                  <div className="lg:col-span-2">
+                    <TreasuryCard
+                      totalBudgets={treasuryTotalBudgets}
+                      remainingBudgets={remainingBudgets}
+                      totalVteInvoices={totalVteInvoices}
+                      globalTreasury={globalTreasury}
+                      activeBudgetsCount={activeBudgetsCount}
+                      vteInvoicesCount={vteInvoicesCount}
+                    />
+                  </div>
+                  
+                  {/* Résumé à droite */}
+                  <div className="space-y-6">
+                    {/* Statistiques rapides */}
+                    <div className="bg-white rounded-lg border border-gray-200 p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Résumé</h3>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Budgets actifs:</span>
+                          <span className="font-medium">{activeBudgetsCount}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Factures VTE:</span>
+                          <span className="font-medium">{vteInvoicesCount}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Efficacité budgets:</span>
+                          <span className="font-medium">
+                            {treasuryTotalBudgets > 0 
+                              ? `${Math.round((remainingBudgets / treasuryTotalBudgets) * 100)}%` 
+                              : '0%'
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Actions rapides */}
+                    <div className="bg-white rounded-lg border border-gray-200 p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => {
+                            setActiveTab('budgets');
+                            setShowBudgetForm(true);
+                          }}
+                          className="w-full px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          Créer un Budget
+                        </button>
+                        <button
+                          onClick={() => refreshTreasury()}
+                          className="w-full px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                        >
+                          Actualiser les Données
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Liste détaillée des factures VTE */}
+            {!treasuryLoading && (
+              <VteInvoicesList
+                invoices={vteInvoices}
+                totalAmount={totalVteInvoices}
+                className="mt-8"
+              />
+            )}
+          </div>
         )}
       </div>
 

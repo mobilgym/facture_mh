@@ -28,7 +28,6 @@ export class BudgetService {
           )
         `)
         .eq('company_id', companyId)
-        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -244,6 +243,33 @@ export class BudgetService {
       console.log('✅ Budget archivé avec succès');
     } catch (error) {
       console.error('❌ Erreur dans archiveBudget:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Active ou désactive un budget
+   */
+  static async toggleBudgetStatus(budgetId: string, isActive: boolean): Promise<void> {
+    try {
+      console.log(`🔄 ${isActive ? 'Activation' : 'Désactivation'} du budget:`, budgetId);
+
+      const { error } = await supabase
+        .from('budgets')
+        .update({ 
+          is_active: isActive,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', budgetId);
+
+      if (error) {
+        console.error('❌ Erreur lors du changement de statut du budget:', error);
+        throw new Error(`Erreur lors du changement de statut du budget: ${error.message}`);
+      }
+
+      console.log(`✅ Budget ${isActive ? 'activé' : 'désactivé'} avec succès`);
+    } catch (error) {
+      console.error('❌ Erreur dans toggleBudgetStatus:', error);
       throw error;
     }
   }
