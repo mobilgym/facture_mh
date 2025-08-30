@@ -106,10 +106,6 @@ export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDele
         badge_ids: file.badge_ids || []
       });
       
-      // Mettre à jour le budget sélectionné pour les billes
-      const currentBudget = budgets.find(budget => budget.id === file.budget_id);
-      setSelectedBudget(currentBudget || null);
-      
       // Marquer comme initialisé après un délai pour permettre aux autres useEffect de s'exécuter
       setTimeout(() => {
         setIsInitialized(true);
@@ -117,6 +113,27 @@ export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDele
       }, 100);
     }
   }, [file]);
+
+  // Effet séparé pour synchroniser le budget sélectionné avec les budgets disponibles
+  useEffect(() => {
+    if (formData.budget_id && budgets.length > 0) {
+      console.log('🔄 FileEditModal - Synchronisation du budget sélectionné');
+      console.log('🔍 FileEditModal - Recherche du budget avec ID:', formData.budget_id);
+      console.log('🔍 FileEditModal - Budgets disponibles:', budgets.map(b => ({ id: b.id, name: b.name })));
+      
+      const currentBudget = budgets.find(budget => budget.id === formData.budget_id);
+      if (currentBudget) {
+        console.log('✅ FileEditModal - Budget trouvé:', currentBudget.name);
+        setSelectedBudget(currentBudget);
+      } else {
+        console.log('❌ FileEditModal - Budget non trouvé dans la liste des budgets disponibles');
+        setSelectedBudget(null);
+      }
+    } else if (!formData.budget_id) {
+      console.log('🔄 FileEditModal - Aucun budget ID, réinitialisation du budget sélectionné');
+      setSelectedBudget(null);
+    }
+  }, [formData.budget_id, budgets]);
 
   // Mettre à jour les badges sélectionnés quand les IDs changent
   useEffect(() => {
