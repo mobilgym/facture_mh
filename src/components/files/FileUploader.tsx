@@ -1,10 +1,11 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, X, FileText, AlertCircle } from 'lucide-react';
+import { Upload, X, FileText, AlertCircle, Edit } from 'lucide-react';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import Button from '@/components/ui/Button';
 import FileImportDialog from './FileImportDialog';
+import ManualInvoiceDialog from './ManualInvoiceDialog';
 import TypeSelectionDialog, { DocumentType } from './TypeSelectionDialog';
 import UploadProgress from './UploadProgress';
 
@@ -18,6 +19,7 @@ export default function FileUploader({ folderId, onSuccess }: FileUploaderProps)
   const [fileToImport, setFileToImport] = useState<File | null>(null);
   const [selectedType, setSelectedType] = useState<DocumentType | null>(null);
   const [showTypeDialog, setShowTypeDialog] = useState(false);
+  const [showManualDialog, setShowManualDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
 
@@ -95,10 +97,30 @@ export default function FileUploader({ folderId, onSuccess }: FileUploaderProps)
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <Button type="button" size="sm" className="mt-2 md:mt-4">
-                  {isDragActive ? 'Déposez ici' : 'Importer'}
-                </Button>
-                <p className="mt-1 md:mt-2 text-xs md:text-sm text-gray-500 hidden md:block">
+                <div className="flex flex-col space-y-3">
+                  <Button type="button" size="sm" className="mt-2 md:mt-4">
+                    {isDragActive ? 'Déposez ici' : 'Importer'}
+                  </Button>
+                  
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-1 border-t border-gray-300"></div>
+                    <span className="text-xs text-gray-500 bg-white px-2">ou</span>
+                    <div className="flex-1 border-t border-gray-300"></div>
+                  </div>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowManualDialog(true)}
+                    className="flex items-center justify-center space-x-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    <span>Saisie manuelle</span>
+                  </Button>
+                </div>
+                
+                <p className="mt-3 md:mt-4 text-xs md:text-sm text-gray-500 hidden md:block">
                   PDF, Images (JPG, PNG - converties en PDF), Documents (DOC, DOCX)
                 </p>
                 <p className="text-xs md:text-sm text-gray-500 hidden md:block">
@@ -163,6 +185,32 @@ export default function FileUploader({ folderId, onSuccess }: FileUploaderProps)
           />
         )}
       </AnimatePresence>
+
+      <ManualInvoiceDialog
+        isOpen={showManualDialog}
+        onClose={() => setShowManualDialog(false)}
+        onConfirm={async (data) => {
+          try {
+            // Créer un fichier virtuel pour la facture manuelle
+            const virtualFile = new File([''], data.fileName, { type: 'application/pdf' });
+            
+            await upload(
+              virtualFile,
+              data.fileName,
+              data.date,
+              data.amount,
+              data.budgetId,
+              data.badgeIds,
+              data.multiAssignments
+            );
+            
+            onSuccess();
+            setShowManualDialog(false);
+          } catch (err: any) {
+            setError(err.message);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -59,59 +59,79 @@ export async function uploadFile({
   onProgress
 }: UploadOptions): Promise<any> {
   try {
-    // Valider les entrées
-    validateFileSize(file);
-    validateFileType(file);
+    // Déterminer si c'est une facture manuelle (fichier vide)
+    const isManualInvoice = file.size === 0;
+    
+    if (!isManualInvoice) {
+      // Validation normale pour les vrais fichiers
+      validateFileSize(file);
+      validateFileType(file);
+    }
     validateFileName(fileName);
 
-    // Convertir en PDF si nécessaire
-    const fileToUpload = await convertToPdf(file);
-    const pdfFileName = fileName.replace(/\.[^/.]+$/, '.pdf');
+    let uploadData = null;
+    let urlData = null;
+    let fileToUpload = null;
+    
+    if (!isManualInvoice) {
+      // Traitement normal pour les fichiers réels
+      fileToUpload = await convertToPdf(file);
+      const pdfFileName = fileName.replace(/\.[^/.]+$/, '.pdf');
 
-    // Créer le chemin de stockage
-    const yearMonthPath = createYearMonthPath(date);
-    const sanitizedName = sanitizePath(`${company.id}/${yearMonthPath}/${Date.now()}-${pdfFileName}`);
+      // Créer le chemin de stockage
+      const yearMonthPath = createYearMonthPath(date);
+      const sanitizedName = sanitizePath(`${company.id}/${yearMonthPath}/${Date.now()}-${pdfFileName}`);
 
-    // Upload vers le storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('test')
-      .upload(sanitizedName, fileToUpload, {
-        cacheControl: '3600',
-        upsert: false
-      });
+      // Upload vers le storage
+      const uploadResult = await supabase.storage
+        .from('test')
+        .upload(sanitizedName, fileToUpload, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-    if (uploadError) {
-      throw new UploadError('Erreur lors du téléchargement', 'UPLOAD_FAILED');
+      if (uploadResult.error) {
+        throw new UploadError('Erreur lors du téléchargement', 'UPLOAD_FAILED');
+      }
+      
+      uploadData = uploadResult.data;
+
+      // Obtenir l'URL publique
+      const urlResult = supabase.storage
+        .from('test')
+        .getPublicUrl(uploadData.path);
+
+      if (!urlResult?.data?.publicUrl) {
+        throw new UploadError('URL du fichier non disponible', 'URL_GENERATION_FAILED');
+      }
+      
+      urlData = urlResult.data;
     }
 
-    // Obtenir l'URL publique
-    const { data: urlData } = supabase.storage
-      .from('test')
-      .getPublicUrl(uploadData.path);
-
-    if (!urlData?.publicUrl) {
-      throw new UploadError('URL du fichier non disponible', 'URL_GENERATION_FAILED');
-    }
+    // Préparation des données pour la base de données
+    const finalFileName = fileName.replace(/\.[^/.]+$/, '.pdf');
+    const insertData = {
+      name: finalFileName,
+      type: isManualInvoice ? 'manual/invoice' : 'application/pdf',
+      size: isManualInvoice ? 0 : fileToUpload!.size,
+      url: isManualInvoice ? null : urlData!.publicUrl,
+      path: isManualInvoice ? null : uploadData!.path,
+      folder_id: folderId,
+      company_id: company.id,
+      created_by: user.id,
+      document_date: date.toISOString(),
+      year,
+      month,
+      amount,
+      budget_id: budgetId,
+      badge_ids: badgeIds,
+      is_manual: isManualInvoice
+    };
 
     // Sauvegarder les métadonnées
     const { data: fileData, error: metadataError } = await supabase
       .from('files')
-      .insert({
-        name: pdfFileName,
-        type: 'application/pdf',
-        size: fileToUpload.size,
-        url: urlData.publicUrl,
-        path: uploadData.path,
-        folder_id: folderId,
-        company_id: company.id,
-        created_by: user.id,
-        document_date: date.toISOString(),
-        year,
-        month,
-        amount,
-        budget_id: budgetId,
-        badge_ids: badgeIds
-      })
+      .insert(insertData)
       .select()
       .single();
 

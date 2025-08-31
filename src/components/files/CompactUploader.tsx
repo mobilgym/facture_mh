@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Plus } from 'lucide-react';
+import { Upload, Plus, Edit } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import FileImportDialog from './FileImportDialog';
+import ManualInvoiceDialog from './ManualInvoiceDialog';
 import TypeSelectionDialog, { DocumentType } from './TypeSelectionDialog';
 import UploadProgress from './UploadProgress';
 import { useFileUpload } from '@/hooks/useFileUpload';
@@ -17,6 +18,7 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
   const [fileToImport, setFileToImport] = useState<File | null>(null);
   const [selectedType, setSelectedType] = useState<DocumentType | null>(null);
   const [showTypeDialog, setShowTypeDialog] = useState(false);
+  const [showManualDialog, setShowManualDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
 
@@ -111,11 +113,31 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <Button type="button" size="sm" className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  {isDragActive ? 'Déposer' : 'Importer'}
-                </Button>
-                <p className="mt-1 text-xs text-gray-500">
+                <div className="space-y-2">
+                  <Button type="button" size="sm" className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    {isDragActive ? 'Déposer' : 'Importer'}
+                  </Button>
+                  
+                  <div className="flex items-center space-x-2">
+                    <div className="flex-1 border-t border-gray-300"></div>
+                    <span className="text-xs text-gray-400 px-1">ou</span>
+                    <div className="flex-1 border-t border-gray-300"></div>
+                  </div>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowManualDialog(true)}
+                    className="w-full text-gray-600 hover:text-blue-600"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Saisie manuelle
+                  </Button>
+                </div>
+                
+                <p className="mt-2 text-xs text-gray-500">
                   PDF, Images→PDF, Docs
                 </p>
               </motion.div>
@@ -154,6 +176,32 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
           onConfirm={handleImportConfirm}
         />
       )}
+
+      <ManualInvoiceDialog
+        isOpen={showManualDialog}
+        onClose={() => setShowManualDialog(false)}
+        onConfirm={async (data) => {
+          try {
+            // Créer un fichier virtuel pour la facture manuelle
+            const virtualFile = new File([''], data.fileName, { type: 'application/pdf' });
+            
+            await upload(
+              virtualFile,
+              data.fileName,
+              data.date,
+              data.amount,
+              data.budgetId,
+              data.badgeIds,
+              data.multiAssignments
+            );
+            
+            onSuccess();
+            setShowManualDialog(false);
+          } catch (err: any) {
+            setError(err.message || 'Erreur lors de la création de la facture manuelle');
+          }
+        }}
+      />
     </>
   );
 }
