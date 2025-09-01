@@ -337,8 +337,10 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🚀 handleSubmit appelé dans FileImportDialog');
     
     if (!selectedCompany) {
+      console.error('❌ Aucune société sélectionnée');
       setError('Veuillez sélectionner une société');
       return;
     }
@@ -392,6 +394,16 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
     }
 
     setError(null);
+    
+    console.log('✅ Validation réussie, appel de onConfirm avec:', {
+      fileName,
+      date,
+      parsedAmount,
+      budgetId,
+      badgeIds,
+      useMultiAssignment,
+      multiAssignments
+    });
     
     // Passer les assignations multiples si le mode est activé
     if (useMultiAssignment) {

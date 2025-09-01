@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, Plus, Edit } from 'lucide-react';
@@ -21,6 +21,7 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
   const [showManualDialog, setShowManualDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -58,15 +59,23 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
   });
 
   const handleImportConfirm = async (processedFile: File, fileName: string, date: Date, amount: number | null, budgetId?: string | null, badgeIds?: string[], multiAssignments?: any[]) => {
-    if (!fileToImport) return;
+    console.log('🔄 handleImportConfirm appelé avec:', { fileName, date, amount, budgetId, badgeIds });
+    
+    if (!fileToImport) {
+      console.error('❌ Aucun fichier à importer');
+      return;
+    }
     
     try {
+      console.log('📤 Début upload du fichier...');
       await upload(processedFile, fileName, date, amount, budgetId, badgeIds, multiAssignments);
+      console.log('✅ Upload réussi !');
       setFileToImport(null);
       setSelectedType(null);
       onSuccess();
-    } catch (err) {
-      setError('Erreur lors de l\'upload');
+    } catch (err: any) {
+      console.error('❌ Erreur upload:', err);
+      setError(err?.message || 'Erreur lors de l\'upload');
     }
   };
 
@@ -87,7 +96,7 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
           borderColor: isDragActive ? '#3B82F6' : '#D1D5DB'
         }}
       >
-        <input {...getInputProps()} />
+        <input {...getInputProps()} ref={fileInputRef} />
         
         <div className="p-4 text-center">
           <motion.div
@@ -114,7 +123,12 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
                 exit={{ opacity: 0 }}
               >
                 <div className="space-y-2">
-                  <Button type="button" size="sm" className="w-full">
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     {isDragActive ? 'Déposer' : 'Importer'}
                   </Button>

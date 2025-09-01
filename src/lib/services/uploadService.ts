@@ -124,8 +124,7 @@ export async function uploadFile({
       month,
       amount,
       budget_id: budgetId,
-      badge_ids: badgeIds,
-      is_manual: isManualInvoice
+      badge_ids: badgeIds
     };
 
     // Sauvegarder les métadonnées
