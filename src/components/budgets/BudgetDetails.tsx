@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, ChevronDown, ChevronRight, Tag, TrendingUp, RefreshCw, Check, Filter } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, Tag, TrendingUp, RefreshCw, Check, Filter, Trash2 } from 'lucide-react';
 import type { BudgetWithStats } from '../../types/budget';
 import type { Badge, BadgeAnalysis } from '../../types/badge';
 import { useBudgetBadges } from '../../hooks/useBudgetBadges';
@@ -13,9 +13,10 @@ import { BadgeService } from '../../lib/services/badgeService';
 interface BudgetDetailsProps {
   budget: BudgetWithStats;
   onClose: () => void;
+  onBudgetUpdated?: () => void;
 }
 
-export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
+export function BudgetDetails({ budget, onClose, onBudgetUpdated }: BudgetDetailsProps) {
   const [expandedBadges, setExpandedBadges] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [badgeAnalysis, setBadgeAnalysis] = useState<BadgeAnalysis[]>([]);
@@ -116,15 +117,61 @@ export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
       console.log('🔄 BudgetDetails - Recalcul du montant dépensé pour le budget:', budget.id);
       await BadgeService.recalculateBudgetSpentAmount(budget.id);
       console.log('✅ BudgetDetails - Montant dépensé recalculé avec succès');
-      
-      // Actualiser la page pour voir les changements
-      window.location.reload();
+
+      // Rafraîchir l'analyse des badges
+      await handleRefresh();
+
+      // Notifier le changement pour rafraîchir les autres composants
+      onBudgetChange();
+
+      // Notifier spécifiquement la mise à jour du budget
+      if (onBudgetUpdated) {
+        onBudgetUpdated();
+      }
+
+      // Plus besoin de recharger la page, les données sont rafraîchies
+      // window.location.reload();
     } catch (error) {
       console.error('❌ Erreur lors du recalcul du montant dépensé:', error);
     } finally {
       setIsRefreshing(false);
     }
   }, [budget.id, isRefreshing]);
+
+  // Fonction pour désassigner une facture d'un badge
+  const handleUnassignFile = useCallback(async (fileId: string, badgeId: string, fileName: string) => {
+    if (isRefreshing) return;
+
+    if (!window.confirm(`Êtes-vous sûr de vouloir désassigner la facture "${fileName}" de ce badge ?`)) {
+      return;
+    }
+
+    setIsRefreshing(true);
+    try {
+      console.log('🔄 BudgetDetails - Désassignation de la facture:', fileId, 'du badge:', badgeId);
+
+      // Utiliser la méthode du service pour désassigner
+      await BadgeService.unassignFileFromBadge(fileId, badgeId);
+
+      console.log('✅ BudgetDetails - Facture désassignée avec succès');
+
+      // Rafraîchir l'analyse des badges
+      await handleRefresh();
+
+      // Notifier le changement pour rafraîchir les autres composants
+      onBudgetChange();
+
+      // Notifier spécifiquement la mise à jour du budget
+      if (onBudgetUpdated) {
+        onBudgetUpdated();
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la désassignation:', error);
+      alert(`Erreur lors de la désassignation: ${error.message}`);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [budget.id, isRefreshing, handleRefresh, onBudgetChange]);
 
   // Charger l'analyse à l'ouverture de la modale
   useEffect(() => {
@@ -216,19 +263,25 @@ export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {/* Résumé du budget avec statistiques dynamiques */}
           <div className="space-y-4 sm:space-y-6 mb-6 sm:mb-8">
-            {/* Résumé du budget original */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
+            {/* Résumé du budget */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-6">
               <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
                 <p className="text-xs sm:text-sm font-medium text-green-700">Budget Initial</p>
                 <p className="text-lg sm:text-2xl font-bold text-green-900">{formatAmount(budget.initial_amount)}</p>
               </div>
               <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
-                <p className="text-xs sm:text-sm font-medium text-blue-700">Dépensé (Original)</p>
-                <p className="text-lg sm:text-2xl font-bold text-blue-900">{formatAmount(budget.spent_amount)}</p>
+                <p className="text-xs sm:text-sm font-medium text-blue-700">Total Assigné</p>
+                <p className="text-lg sm:text-2xl font-bold text-blue-900">{formatAmount(dynamicStats.totalAmount)}</p>
               </div>
               <div className="bg-cyan-50 p-3 sm:p-4 rounded-lg">
-                <p className="text-xs sm:text-sm font-medium text-cyan-700">Restant (Original)</p>
-                <p className="text-lg sm:text-2xl font-bold text-cyan-900">{formatAmount(budget.remaining_amount)}</p>
+                <p className="text-xs sm:text-sm font-medium text-cyan-700">Budget Restant</p>
+                <p className={`text-lg sm:text-2xl font-bold ${dynamicStats.remainingAmount >= 0 ? 'text-cyan-900' : 'text-red-600'}`}>
+                  {formatAmount(dynamicStats.remainingAmount)}
+                </p>
+              </div>
+              <div className="bg-purple-50 p-3 sm:p-4 rounded-lg">
+                <p className="text-xs sm:text-sm font-medium text-purple-700">Utilisation</p>
+                <p className="text-lg sm:text-2xl font-bold text-purple-900">{dynamicStats.percentage.toFixed(1)}%</p>
               </div>
             </div>
 
@@ -425,10 +478,20 @@ export function BudgetDetails({ budget, onClose }: BudgetDetailsProps) {
                                         </span>
                                       </div>
                                     </div>
-                                    <div className="text-left sm:text-right flex-shrink-0">
-                                      <p className="font-medium text-gray-900 text-sm sm:text-base">
-                                        {formatAmount(file.amount)}
-                                      </p>
+                                    <div className="flex items-center space-x-3 flex-shrink-0">
+                                      <div className="text-left sm:text-right">
+                                        <p className="font-medium text-gray-900 text-sm sm:text-base">
+                                          {formatAmount(file.amount)}
+                                        </p>
+                                      </div>
+                                      <button
+                                        onClick={() => handleUnassignFile(file.id, analysis.badge.id, file.name)}
+                                        disabled={isRefreshing}
+                                        className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                                        title="Désassigner cette facture"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
                                     </div>
                                   </div>
                                 </div>

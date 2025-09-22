@@ -262,13 +262,13 @@ export class BadgeService {
    * Assigne des badges à un fichier avec support pour assignations multiples et pourcentages
    */
   static async assignBadgesToFile(
-    fileId: string, 
+    fileId: string,
     badgeAssignments: { badgeId: string; amountAllocated?: number; percentage?: number }[],
     userId: string
   ): Promise<void> {
     try {
       console.log('🔍 BadgeService - Vérification des assignations existantes pour le fichier:', fileId);
-      
+
       // Récupérer les assignations existantes
       const { data: existingAssignments, error: fetchError } = await supabase
         .from('file_badges')
@@ -283,12 +283,22 @@ export class BadgeService {
       const existing = existingAssignments || [];
       const newAssignments = badgeAssignments || [];
 
+      // Vérifier les doublons dans les nouvelles assignations
+      const badgeIdCounts = new Map();
+      for (const assignment of newAssignments) {
+        const count = badgeIdCounts.get(assignment.badgeId) || 0;
+        badgeIdCounts.set(assignment.badgeId, count + 1);
+        if (count >= 1) {
+          throw new Error(`Erreur: Le badge avec l'ID ${assignment.badgeId} est assigné plusieurs fois à cette facture. Chaque badge ne peut être assigné qu'une seule fois par facture.`);
+        }
+      }
+
       // Créer des maps pour faciliter la comparaison
       const existingMap = new Map(existing.map(e => [e.badge_id, e.amount_allocated]));
       const newMap = new Map(newAssignments.map(n => [n.badgeId, n.amountAllocated]));
 
       // Vérifier si les assignations ont changé
-      const hasChanged = 
+      const hasChanged =
         existing.length !== newAssignments.length ||
         existing.some(e => !newMap.has(e.badge_id) || newMap.get(e.badge_id) !== e.amount_allocated) ||
         newAssignments.some(n => !existingMap.has(n.badgeId) || existingMap.get(n.badgeId) !== n.amountAllocated);
@@ -385,6 +395,16 @@ export class BadgeService {
       const totalPercentage = multiAssignments.reduce((sum, assignment) => sum + assignment.percentage, 0);
       if (totalPercentage > 100) {
         throw new Error(`Le pourcentage total (${totalPercentage}%) dépasse 100%`);
+      }
+
+      // Vérifier les doublons dans les nouvelles assignations
+      const badgeIdCounts = new Map();
+      for (const assignment of multiAssignments) {
+        const count = badgeIdCounts.get(assignment.badgeId) || 0;
+        badgeIdCounts.set(assignment.badgeId, count + 1);
+        if (count >= 1) {
+          throw new Error(`Erreur: Le badge avec l'ID ${assignment.badgeId} est assigné plusieurs fois à cette facture. Chaque badge ne peut être assigné qu'une seule fois par facture.`);
+        }
       }
 
       // Récupérer les assignations existantes pour nettoyage
@@ -488,6 +508,19 @@ export class BadgeService {
     try {
       console.log('🔄 Recalcul du montant dépensé pour le budget:', budgetId);
 
+      // Récupérer le montant initial du budget
+      const { data: budgetData, error: budgetError } = await supabase
+        .from('budgets')
+        .select('initial_amount')
+        .eq('id', budgetId)
+        .single();
+
+      if (budgetError) {
+        throw new Error(`Erreur lors de la récupération du budget: ${budgetError.message}`);
+      }
+
+      const initialAmount = budgetData?.initial_amount ?? 0;
+
       // Récupérer tous les file_badges qui correspondent aux badges de ce budget
       const { data: budgetBadges, error: budgetBadgesError } = await supabase
         .from('budget_badges')
@@ -502,7 +535,9 @@ export class BadgeService {
         // Aucun badge assigné au budget, montant dépensé = 0
         await supabase
           .from('budgets')
-          .update({ spent_amount: 0 })
+          .update({
+            spent_amount: 0
+          })
           .eq('id', budgetId);
         
         console.log('✅ Montant dépensé mis à jour à 0 (aucun badge)');
@@ -512,13 +547,16 @@ export class BadgeService {
       const badgeIds = budgetBadges.map(bb => bb.badge_id);
 
       // Calculer la somme des montants alloués pour ces badges
+      // IMPORTANT: Filtrer aussi par budget_id pour ne compter que les factures de ce budget
       const { data: fileBadges, error: fileBadgesError } = await supabase
         .from('file_badges')
         .select(`
           amount_allocated,
-          file:files!inner(amount)
+          file:files!inner(amount, budget_id)
         `)
-        .in('badge_id', badgeIds);
+        .in('badge_id', badgeIds)
+        .eq('file.budget_id', budgetId)
+        .not('file.budget_id', 'is', null);
 
       if (fileBadgesError) {
         throw new Error(`Erreur lors du calcul des montants: ${fileBadgesError.message}`);
@@ -532,16 +570,31 @@ export class BadgeService {
       }, 0) || 0;
 
       // Mettre à jour le montant dépensé du budget
+      // Note: remaining_amount est probablement une colonne calculée, on ne la met pas à jour directement
       const { error: updateError } = await supabase
         .from('budgets')
-        .update({ spent_amount: totalSpent })
+        .update({
+          spent_amount: totalSpent
+        })
         .eq('id', budgetId);
 
       if (updateError) {
         throw new Error(`Erreur lors de la mise à jour du montant dépensé: ${updateError.message}`);
       }
 
-      console.log('✅ Montant dépensé recalculé:', totalSpent);
+      console.log('✅ Montant dépensé recalculé:', {
+        budgetId,
+        initialAmount,
+        totalSpent,
+        calculatedRemaining: initialAmount - totalSpent,
+        badgeIds,
+        fileBadgesCount: fileBadges?.length || 0,
+        fileBadgesDetails: fileBadges?.map(fb => ({
+          amount_allocated: fb.amount_allocated,
+          file_amount: fb.file?.amount,
+          file_budget_id: fb.file?.budget_id
+        }))
+      });
     } catch (error) {
       console.error('❌ Erreur lors du recalcul du montant dépensé:', error);
       throw error;
@@ -686,6 +739,58 @@ export class BadgeService {
       return badge;
     } catch (error) {
       console.error('❌ Erreur dans getBadgeById:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Désassigne une facture spécifique d'un badge spécifique
+   */
+  static async unassignFileFromBadge(fileId: string, badgeId: string): Promise<void> {
+    try {
+      console.log('🔄 BadgeService - Désassignation de la facture:', fileId, 'du badge:', badgeId);
+
+      // Récupérer l'assignation existante pour vérifier qu'elle existe
+      const { data: existingAssignment, error: fetchError } = await supabase
+        .from('file_badges')
+        .select('*')
+        .eq('file_id', fileId)
+        .eq('badge_id', badgeId)
+        .single();
+
+      if (fetchError) {
+        if (fetchError.code === 'PGRST116') {
+          throw new Error('Cette facture n\'est pas assignée à ce badge');
+        }
+        throw new Error(`Erreur lors de la récupération de l'assignation: ${fetchError.message}`);
+      }
+
+      // Supprimer l'assignation
+      const { error: deleteError } = await supabase
+        .from('file_badges')
+        .delete()
+        .eq('file_id', fileId)
+        .eq('badge_id', badgeId);
+
+      if (deleteError) {
+        throw new Error(`Erreur lors de la désassignation: ${deleteError.message}`);
+      }
+
+      // Récupérer le budget affecté pour le recalcul
+      const { data: budgetBadge, error: budgetError } = await supabase
+        .from('budget_badges')
+        .select('budget_id')
+        .eq('badge_id', badgeId)
+        .single();
+
+      if (!budgetError && budgetBadge) {
+        // Recalculer le montant dépensé du budget
+        await this.recalculateBudgetSpentAmount(budgetBadge.budget_id);
+      }
+
+      console.log('✅ Facture désassignée avec succès du badge');
+    } catch (error) {
+      console.error('❌ Erreur dans unassignFileFromBadge:', error);
       throw error;
     }
   }

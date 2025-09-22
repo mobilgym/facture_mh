@@ -17,14 +17,21 @@ export function useBudgets() {
   const { onBudgetChange } = useBudgetNotification();
 
   // Récupérer les budgets
-  const loadBudgets = useCallback(async () => {
+  const loadBudgets = useCallback(async (shouldRecalculate = false) => {
     if (!selectedCompany) return;
-    
+
     try {
       setLoading(true);
+
+      // Recalculer les montants dépensés de tous les budgets si demandé
+      if (shouldRecalculate) {
+        console.log('🔄 useBudgets - Recalcul des montants dépensés avant chargement');
+        await BudgetService.recalculateAllBudgetsSpentAmount(selectedCompany.id);
+      }
+
       const budgetsData = await BudgetService.getBudgetsByCompany(selectedCompany.id);
       setBudgets(budgetsData);
-      
+
       // Charger les alertes
       const alertsData = await BudgetService.getBudgetAlerts(selectedCompany.id);
       setAlerts(alertsData);
@@ -160,14 +167,14 @@ export function useBudgets() {
   // S'abonner aux notifications de changement de budget pour rafraîchir les données
   useEffect(() => {
     if (!selectedCompany) return;
-    
+
     const unsubscribe = onBudgetChange(() => {
-      console.log('🔔 useBudgets - Notification reçue, rafraîchissement des budgets');
-      loadBudgets();
+      console.log('🔔 useBudgets - Notification reçue, rafraîchissement des budgets avec recalcul');
+      loadBudgets(true); // Recalculer les montants avant le rechargement
     });
 
     return unsubscribe;
-  }, [onBudgetChange, selectedCompany]);
+  }, [onBudgetChange, selectedCompany, loadBudgets]);
 
   return {
     budgets,
@@ -180,6 +187,7 @@ export function useBudgets() {
     deleteBudget,
     reactivateBudget,
     getBudgetById,
-    refreshBudgets: loadBudgets
+    refreshBudgets: () => loadBudgets(true),
+    refreshBudgetsNoRecalc: () => loadBudgets(false)
   };
 }

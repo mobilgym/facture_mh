@@ -38,18 +38,27 @@ export class BudgetService {
       // Calculer les statistiques pour chaque budget
       const budgetsWithStats: BudgetWithStats[] = budgets?.map((budget: any) => {
         const expenses = budget.expenses || [];
-        const paidExpenses = expenses.filter((exp: any) => 
+        const paidExpenses = expenses.filter((exp: any) =>
           exp.status === 'approved' || exp.status === 'paid'
         );
-        
+
         const expensesCount = paidExpenses.length;
-        const percentageUsed = budget.initial_amount > 0 
-          ? (budget.spent_amount / budget.initial_amount) * 100 
+
+        // Utiliser les valeurs calculées par le système de badges
+        // spent_amount est mis à jour par BadgeService.recalculateBudgetSpentAmount()
+        // remaining_amount est calculé côté client car c'est une colonne calculée en DB
+        const spentAmount = budget.spent_amount || 0;
+        const remainingAmount = budget.initial_amount - spentAmount;
+
+        const percentageUsed = budget.initial_amount > 0
+          ? (spentAmount / budget.initial_amount) * 100
           : 0;
-        const isOverBudget = budget.spent_amount > budget.initial_amount;
+        const isOverBudget = spentAmount > budget.initial_amount;
 
         return {
           ...budget,
+          spent_amount: spentAmount,
+          remaining_amount: remainingAmount,
           expenses_count: expensesCount,
           percentage_used: Math.round(percentageUsed * 100) / 100,
           is_over_budget: isOverBudget
@@ -96,18 +105,27 @@ export class BudgetService {
 
       // Calculer les statistiques
       const expenses = budget.expenses || [];
-      const paidExpenses = expenses.filter((exp: any) => 
+      const paidExpenses = expenses.filter((exp: any) =>
         exp.status === 'approved' || exp.status === 'paid'
       );
-      
+
       const expensesCount = paidExpenses.length;
-      const percentageUsed = budget.initial_amount > 0 
-        ? (budget.spent_amount / budget.initial_amount) * 100 
+
+      // Utiliser les valeurs calculées par le système de badges
+      // spent_amount est mis à jour par BadgeService.recalculateBudgetSpentAmount()
+      // remaining_amount est calculé côté client car c'est une colonne calculée en DB
+      const spentAmount = budget.spent_amount || 0;
+      const remainingAmount = budget.initial_amount - spentAmount;
+
+      const percentageUsed = budget.initial_amount > 0
+        ? (spentAmount / budget.initial_amount) * 100
         : 0;
-      const isOverBudget = budget.spent_amount > budget.initial_amount;
+      const isOverBudget = spentAmount > budget.initial_amount;
 
       const budgetWithStats: BudgetWithStats = {
         ...budget,
+        spent_amount: spentAmount,
+        remaining_amount: remainingAmount,
         expenses_count: expensesCount,
         percentage_used: Math.round(percentageUsed * 100) / 100,
         is_over_budget: isOverBudget

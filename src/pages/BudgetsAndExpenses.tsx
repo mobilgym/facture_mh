@@ -25,6 +25,7 @@ export function BudgetsAndExpenses() {
   const [editingBudget, setEditingBudget] = useState<BudgetWithStats | null>(null);
   const [selectedBudget, setSelectedBudget] = useState<BudgetWithStats | null>(null);
   const [editingBadge, setEditingBadge] = useState<BadgeWithStats | null>(null);
+  const [recalculatingBudgets, setRecalculatingBudgets] = useState<Set<string>>(new Set());
 
   const { user } = useAuth();
   const { selectedCompany } = useCompany();
@@ -37,7 +38,9 @@ export function BudgetsAndExpenses() {
     updateBudget,
     archiveBudget,
     toggleBudgetStatus,
-    deleteBudget
+    deleteBudget,
+    refreshBudgets,
+    refreshBudgetsNoRecalc
   } = useBudgets();
 
   const {
@@ -145,6 +148,42 @@ export function BudgetsAndExpenses() {
   const handleReactivateBadge = async (badge: BadgeWithStats) => {
     if (window.confirm(`Êtes-vous sûr de vouloir réactiver le badge "${badge.name}" ?`)) {
       await reactivateBadge(badge.id);
+    }
+  };
+
+  // Gestion du recalcul des budgets
+  const handleRecalculateBudget = async (budgetId: string) => {
+    // Marquer ce budget comme en cours de recalcul
+    setRecalculatingBudgets(prev => new Set(prev).add(budgetId));
+
+    try {
+      console.log('🔄 Recalcul du budget:', budgetId);
+
+      // Import dynamique pour éviter les dépendances circulaires
+      const { BadgeService } = await import('../lib/services/badgeService');
+      await BadgeService.recalculateBudgetSpentAmount(budgetId);
+
+      console.log('✅ Recalcul terminé, rafraîchissement des données...');
+
+      // Attendre un peu pour s'assurer que la DB est à jour
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Rafraîchir les données sans recalcul supplémentaire
+      await Promise.all([
+        refreshTreasury(),
+        refreshBudgetsNoRecalc() // Rafraîchir sans recalculer tous les budgets
+      ]);
+
+      console.log('✅ Budget recalculé avec succès et données rafraîchies');
+    } catch (error) {
+      console.error('❌ Erreur lors du recalcul du budget:', error);
+    } finally {
+      // Retirer ce budget de la liste des budgets en cours de recalcul
+      setRecalculatingBudgets(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(budgetId);
+        return newSet;
+      });
     }
   };
 
@@ -366,6 +405,8 @@ export function BudgetsAndExpenses() {
                     onArchive={archiveBudget}
                     onToggleStatus={toggleBudgetStatus}
                     onDelete={deleteBudget}
+                    onRecalculate={handleRecalculateBudget}
+                    isRecalculating={recalculatingBudgets.has(budget.id)}
                     onClick={() => setSelectedBudget(budget)}
                   />
                 ))}
@@ -529,6 +570,10 @@ export function BudgetsAndExpenses() {
         <BudgetDetails
           budget={selectedBudget}
           onClose={() => setSelectedBudget(null)}
+          onBudgetUpdated={() => {
+            // Rafraîchir uniquement les données sans recalcul complet
+            refreshBudgetsNoRecalc();
+          }}
         />
       )}
 

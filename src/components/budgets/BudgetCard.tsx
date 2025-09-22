@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit, Archive, Trash2, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Edit, Archive, Trash2, AlertTriangle, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import { ToggleSwitch } from '../ui/ToggleSwitch';
 import type { BudgetWithStats } from '../../types/budget';
 
@@ -9,10 +9,12 @@ interface BudgetCardProps {
   onArchive: (budgetId: string) => void;
   onDelete: (budgetId: string) => void;
   onToggleStatus: (budgetId: string, isActive: boolean) => void;
+  onRecalculate?: (budgetId: string) => void;
   onClick?: (budget: BudgetWithStats) => void;
+  isRecalculating?: boolean;
 }
 
-export function BudgetCard({ budget, onEdit, onArchive, onDelete, onToggleStatus, onClick }: BudgetCardProps) {
+export function BudgetCard({ budget, onEdit, onArchive, onDelete, onToggleStatus, onRecalculate, onClick, isRecalculating = false }: BudgetCardProps) {
   const handleCardClick = () => {
     if (onClick) {
       onClick(budget);
@@ -36,6 +38,13 @@ export function BudgetCard({ budget, onEdit, onArchive, onDelete, onToggleStatus
 
   const handleToggleStatus = (isActive: boolean) => {
     onToggleStatus(budget.id, isActive);
+  };
+
+  const handleRecalculate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onRecalculate) {
+      onRecalculate(budget.id);
+    }
   };
 
   const getProgressColor = () => {
@@ -194,6 +203,18 @@ export function BudgetCard({ budget, onEdit, onArchive, onDelete, onToggleStatus
 
         {/* Actions */}
         <div className="flex items-center justify-end space-x-2 pt-4 border-t border-gray-100">
+          {onRecalculate && (
+            <button
+              onClick={handleRecalculate}
+              disabled={isRecalculating}
+              className="inline-flex items-center px-3 py-1.5 border border-green-300 shadow-sm text-sm font-medium rounded-md text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors disabled:opacity-50"
+              title="Recalculer les montants basés sur les badges"
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${isRecalculating ? 'animate-spin' : ''}`} />
+              {isRecalculating ? 'Calcul...' : 'Recalculer'}
+            </button>
+          )}
+
           <button
             onClick={handleEdit}
             className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
@@ -201,7 +222,7 @@ export function BudgetCard({ budget, onEdit, onArchive, onDelete, onToggleStatus
             <Edit className="h-4 w-4 mr-1" />
             Modifier
           </button>
-          
+
           <button
             onClick={handleArchive}
             className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors"
@@ -209,7 +230,7 @@ export function BudgetCard({ budget, onEdit, onArchive, onDelete, onToggleStatus
             <Archive className="h-4 w-4 mr-1" />
             Archiver
           </button>
-          
+
           <button
             onClick={handleDelete}
             className="inline-flex items-center px-3 py-1.5 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
