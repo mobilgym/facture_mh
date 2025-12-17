@@ -198,7 +198,7 @@ export default function YearlyNavigation({ periodsData, selectedPeriod, onPeriod
                         onClick={() => {
                           // Si on clique sur le mois déjà sélectionné, on déselectionne
                           if (selectedPeriod.year === period.year && selectedPeriod.month === period.month) {
-                            onPeriodSelect({ year: period.year, month: '' });
+                            onPeriodSelect({ year: period.year, month: null });
                           } else {
                             onPeriodSelect({ year: period.year, month: period.month });
                           }

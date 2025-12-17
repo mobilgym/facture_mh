@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { checkFileAvailability } from '@/lib/services/fileAvailabilityService';
+import { checkFilesAvailability } from '@/lib/services/fileAvailabilityService';
 import FileGridItem from './FileGridItem';
 import FileTotal from './FileTotal';
 import { FileEditModal } from './FileEditModal';
@@ -52,6 +52,7 @@ export default function FileGrid({
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const hasCheckedAvailability = useRef(false);
   
   // États pour le popup de raccourci
   const [quickAssignmentFile, setQuickAssignmentFile] = useState<FileItem | null>(null);
@@ -63,19 +64,37 @@ export default function FileGrid({
   const { badges } = useBadges();
 
   useEffect(() => {
+    let isActive = true;
+
     const checkFiles = async () => {
-      setLoading(true);
-      const checkedFiles = await Promise.all(
-        files.map(async (file) => {
-          const isAvailable = await checkFileAvailability(file.path);
-          return isAvailable ? file : null;
-        })
-      );
-      setAvailableFiles(checkedFiles.filter((file): file is FileItem => file !== null));
+      if (files.length === 0) {
+        setAvailableFiles([]);
+        setLoading(false);
+        hasCheckedAvailability.current = true;
+        return;
+      }
+
+      if (!hasCheckedAvailability.current) {
+        setLoading(true);
+      }
+
+      // Afficher rapidement la nouvelle liste, la validation se fait en arrière-plan.
+      setAvailableFiles(files);
+
+      const availability = await checkFilesAvailability(files.map((file) => file.path));
+      if (!isActive) return;
+
+      const checkedFiles = files.filter((file) => availability.get(file.path) === true);
+      setAvailableFiles(checkedFiles);
       setLoading(false);
+      hasCheckedAvailability.current = true;
     };
 
     checkFiles();
+
+    return () => {
+      isActive = false;
+    };
   }, [files]);
 
   const handleEdit = (fileId: string, field: 'amount' | 'date', currentValue: string) => {

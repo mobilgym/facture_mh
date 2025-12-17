@@ -337,6 +337,7 @@ export default function FileGridItem({
           <FileActions
             file={file}
             onDelete={() => onDeleteClick(file)}
+            skipAvailabilityCheck
           />
         </div>
       </div>

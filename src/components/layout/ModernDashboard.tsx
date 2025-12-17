@@ -34,6 +34,33 @@ interface QuickStats {
   totalAmount: number;
 }
 
+const parseDateValue = (value: string | Date | null | undefined) => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const normalizeSelectionPeriod = (period: { year: string | null; month: string | null }) => {
+  const year = period.year ? String(period.year) : null;
+  const month = period.month ? String(period.month).padStart(2, '0') : null;
+  return { year, month };
+};
+
+const getNormalizedPeriod = (
+  yearValue: string | number | null | undefined,
+  monthValue: string | number | null | undefined,
+  dateValue?: string | Date | null
+) => {
+  const parsedDate = parseDateValue(dateValue);
+  const year = yearValue ? String(yearValue) : parsedDate ? String(parsedDate.getFullYear()) : null;
+  const rawMonth = monthValue ? String(monthValue) : parsedDate ? String(parsedDate.getMonth() + 1) : null;
+  const month = rawMonth ? rawMonth.padStart(2, '0') : null;
+
+  if (!year || !month) return null;
+
+  return { year, month };
+};
+
 export default function ModernDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -50,10 +77,16 @@ export default function ModernDashboard() {
   
   // Fonction pour gérer la sélection de période avec basculement automatique vers factures
   const handlePeriodSelect = (period: { year: string | null; month: string | null }) => {
-    setSelectedPeriod(period);
+    const normalized = normalizeSelectionPeriod(period);
+    setSelectedPeriod(prev => {
+      if (prev.year === normalized.year && prev.month === normalized.month) {
+        return prev;
+      }
+      return normalized;
+    });
 
     // Basculer automatiquement vers les factures quand une période (année ou mois) est sélectionnée
-    if (period.year) {
+    if (normalized.year) {
       setContentType('files');
     }
   };
@@ -92,12 +125,19 @@ export default function ModernDashboard() {
 
     // Process ALL files
     allFiles?.forEach(file => {
-      const key = `${file.year}-${file.month}`;
+      const period = getNormalizedPeriod(
+        file.year,
+        file.month,
+        file.document_date || file.createdAt || (file as any).created_at
+      );
+      if (!period) return;
+
+      const key = `${period.year}-${period.month}`;
       if (!periods.has(key)) {
-        const date = new Date(parseInt(file.year), parseInt(file.month) - 1);
+        const date = new Date(parseInt(period.year), parseInt(period.month) - 1);
         periods.set(key, {
-          year: file.year,
-          month: file.month,
+          year: period.year,
+          month: period.month,
           files: [],
           invoices: [],
           monthName: date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
@@ -108,12 +148,15 @@ export default function ModernDashboard() {
 
     // Process ALL invoices
     allInvoices?.forEach(invoice => {
-      const key = `${invoice.year}-${invoice.month}`;
+      const period = getNormalizedPeriod(invoice.year, invoice.month, invoice.document_date);
+      if (!period) return;
+
+      const key = `${period.year}-${period.month}`;
       if (!periods.has(key)) {
-        const date = new Date(parseInt(invoice.year), parseInt(invoice.month) - 1);
+        const date = new Date(parseInt(period.year), parseInt(period.month) - 1);
         periods.set(key, {
-          year: invoice.year,
-          month: invoice.month,
+          year: period.year,
+          month: period.month,
           files: [],
           invoices: [],
           monthName: date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
@@ -534,6 +577,7 @@ export default function ModernDashboard() {
                           onUpdate={refetchFiles}
                           onUpdateFile={handleFileUpdate}
                           selectedPeriod={selectedPeriod}
+                          onPeriodNavigate={handlePeriodSelect}
                         />
                 </motion.div>
               )}

@@ -2,8 +2,8 @@ import React, { useState, useMemo, useCallback } from 'react';
 import FileTabsWithTotals from './FileTabsWithTotals';
 import AdvancedSearch, { SearchFilters } from './AdvancedSearch';
 import BulkActionModal from './BulkActionModal';
+import FileBreadcrumb from './FileBreadcrumb';
 import type { FileItem } from '@/types/file';
-import { FileService } from '@/lib/services/fileService';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -14,6 +14,7 @@ interface EnhancedFileGridProps {
   onUpdateFile?: (fileId: string, updates: Partial<FileItem>) => Promise<void>;
   onBudgetExpenseUpdated?: () => void;
   selectedPeriod?: { year: string | null; month: string | null };
+  onPeriodNavigate?: (period: { year: string | null; month: string | null }) => void;
 }
 
 export default function EnhancedFileGrid({
@@ -22,7 +23,8 @@ export default function EnhancedFileGrid({
   onUpdate,
   onUpdateFile,
   onBudgetExpenseUpdated,
-  selectedPeriod
+  selectedPeriod,
+  onPeriodNavigate
 }: EnhancedFileGridProps) {
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     search: '',
@@ -93,19 +95,66 @@ export default function EnhancedFileGrid({
     return isNaN(parsed) ? null : parsed;
   };
 
-  // Filtrage des fichiers en fonction de la recherche
-  const filteredFiles = useMemo(() => {
-    return files.filter(file => {
-      // FILTRAGE PAR PÉRIODE DE NAVIGATION (en premier)
-      // Si une période est sélectionnée via la navigation, l'appliquer comme filtre de base
-      if (selectedPeriod?.year) {
-        // Filtrer par année
-        if (file.year !== selectedPeriod.year) return false;
+  const hasActiveFilters = searchFilters.search ||
+                           searchFilters.dateMode ||
+                           searchFilters.amountMode;
 
-        // Si un mois est spécifié, filtrer aussi par mois
-        if (selectedPeriod.month && file.month !== selectedPeriod.month) return false;
+  const normalizedSelectedYear = selectedPeriod?.year ? String(selectedPeriod.year) : null;
+  const normalizedSelectedMonth = selectedPeriod?.month ? String(selectedPeriod.month).padStart(2, '0') : null;
+
+  const filesByPeriod = useMemo(() => {
+    const byYear = new Map<string, { all: FileItem[]; months: Map<string, FileItem[]> }>();
+
+    const parseDateValue = (value: string | Date | null | undefined) => {
+      if (!value) return null;
+      const date = value instanceof Date ? value : new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    };
+
+    const getFilePeriod = (file: FileItem) => {
+      const parsedDate = parseDateValue(file.document_date || file.createdAt || (file as any).created_at);
+      const year = file.year ? String(file.year) : parsedDate ? String(parsedDate.getFullYear()) : null;
+      const rawMonth = file.month ? String(file.month) : parsedDate ? String(parsedDate.getMonth() + 1) : null;
+      const month = rawMonth ? rawMonth.padStart(2, '0') : null;
+
+      if (!year || !month) return null;
+
+      return { year, month };
+    };
+
+    files.forEach((file) => {
+      const period = getFilePeriod(file);
+      if (!period) return;
+
+      let yearEntry = byYear.get(period.year);
+      if (!yearEntry) {
+        yearEntry = { all: [], months: new Map() };
+        byYear.set(period.year, yearEntry);
       }
 
+      yearEntry.all.push(file);
+
+      const monthList = yearEntry.months.get(period.month) || [];
+      monthList.push(file);
+      yearEntry.months.set(period.month, monthList);
+    });
+
+    return byYear;
+  }, [files]);
+
+  const periodFiles = useMemo(() => {
+    if (!normalizedSelectedYear) return files;
+    const yearEntry = filesByPeriod.get(normalizedSelectedYear);
+    if (!yearEntry) return [];
+    if (!normalizedSelectedMonth) return yearEntry.all;
+    return yearEntry.months.get(normalizedSelectedMonth) || [];
+  }, [files, filesByPeriod, normalizedSelectedMonth, normalizedSelectedYear]);
+
+  const baseFiles = normalizedSelectedYear ? periodFiles : files;
+
+  // Filtrage des fichiers en fonction de la recherche
+  const filteredFiles = useMemo(() => {
+    return baseFiles.filter(file => {
       // Recherche textuelle étendue (nom, montant, date)
       if (searchFilters.search) {
         const searchTerm = searchFilters.search.toLowerCase();
@@ -240,7 +289,7 @@ export default function EnhancedFileGrid({
 
       return true;
     });
-  }, [files, searchFilters, selectedPeriod]);
+  }, [baseFiles, searchFilters]);
 
   const handleToggleSelectionMode = useCallback(() => {
     setSelectionMode(!selectionMode);
@@ -326,14 +375,18 @@ export default function EnhancedFileGrid({
   };
 
   // Vérifier si des filtres sont actifs (recherche ou navigation)
-  const hasActiveFilters = searchFilters.search ||
-                           searchFilters.dateMode ||
-                           searchFilters.amountMode;
-
-  const hasNavigationFilter = selectedPeriod?.year;
+  const hasNavigationFilter = normalizedSelectedYear;
 
   return (
     <div className="space-y-6">
+      {onPeriodNavigate && normalizedSelectedYear && (
+        <FileBreadcrumb
+          year={normalizedSelectedYear}
+          month={normalizedSelectedMonth}
+          onNavigate={(year, month) => onPeriodNavigate({ year, month })}
+        />
+      )}
+
       {/* Moteur de recherche avancée */}
       <AdvancedSearch
         onFiltersChange={setSearchFilters}
@@ -349,9 +402,9 @@ export default function EnhancedFileGrid({
             <div className="flex items-center space-x-2">
               <div className="h-2 w-2 bg-cyan-500 rounded-full"></div>
               <p className="text-sm font-medium text-cyan-900">
-                {selectedPeriod.month
-                  ? `Période sélectionnée : ${new Date(parseInt(selectedPeriod.year), parseInt(selectedPeriod.month) - 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`
-                  : `Période sélectionnée : Année ${selectedPeriod.year}`
+                {normalizedSelectedMonth
+                  ? `Période sélectionnée : ${new Date(parseInt(normalizedSelectedYear as string), parseInt(normalizedSelectedMonth) - 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`
+                  : `Période sélectionnée : Année ${normalizedSelectedYear}`
                 }
               </p>
             </div>

@@ -6,39 +6,36 @@ import type { FileItem } from '@/types/file';
 interface FileActionsProps {
   file: FileItem;
   onDelete: () => void;
+  skipAvailabilityCheck?: boolean;
 }
 
-export default function FileActions({ file, onDelete }: FileActionsProps) {
+export default function FileActions({ file, onDelete, skipAvailabilityCheck = false }: FileActionsProps) {
   const [isAvailable, setIsAvailable] = useState(true);
-  const [checking, setChecking] = useState(true);
+  const [checking, setChecking] = useState(!skipAvailabilityCheck);
 
   useEffect(() => {
+    if (skipAvailabilityCheck) {
+      setChecking(false);
+      setIsAvailable(true);
+      return;
+    }
+
+    let isActive = true;
+
     const checkAvailability = async () => {
       const available = await checkFileAvailability(file.path);
+      if (!isActive) return;
       setIsAvailable(available);
       setChecking(false);
     };
 
     checkAvailability();
-  }, [file.path]);
+    return () => {
+      isActive = false;
+    };
+  }, [file.path, skipAvailabilityCheck]);
 
-  if (checking) {
-    return (
-      <div className="flex items-center space-x-2 opacity-50">
-        <div className="animate-pulse h-8 w-24 bg-gray-200 rounded" />
-      </div>
-    );
-  }
-
-  if (!isAvailable) {
-    return (
-      <div className="px-3 py-1 text-sm text-red-600 bg-red-50 rounded-md">
-        Facture non disponible
-      </div>
-    );
-  }
-
-  return (
+  const actions = (
     <div className="flex items-center space-x-1">
       <button
         onClick={(e) => {
@@ -63,4 +60,26 @@ export default function FileActions({ file, onDelete }: FileActionsProps) {
       </button>
     </div>
   );
+
+  if (skipAvailabilityCheck) {
+    return actions;
+  }
+
+  if (checking) {
+    return (
+      <div className="flex items-center space-x-2 opacity-50">
+        <div className="animate-pulse h-8 w-24 bg-gray-200 rounded" />
+      </div>
+    );
+  }
+
+  if (!isAvailable) {
+    return (
+      <div className="px-3 py-1 text-sm text-red-600 bg-red-50 rounded-md">
+        Facture non disponible
+      </div>
+    );
+  }
+
+  return actions;
 }

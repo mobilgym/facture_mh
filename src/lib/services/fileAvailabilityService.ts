@@ -1,26 +1,94 @@
 import { supabase } from '../supabase';
 
-export async function checkFileAvailability(path: string): Promise<boolean> {
-  if (!path) return false;
-  
-  try {
-    // Vérifie si le fichier existe dans le stockage
+const inflightFolderChecks = new Map<string, Promise<Set<string> | null>>();
+
+const getFolderKey = (folderPath: string) => folderPath || '__root__';
+
+const extractFolderPath = (path: string) => {
+  const parts = path.split('/');
+  parts.pop();
+  return parts.join('/');
+};
+
+const extractFileName = (path: string) => {
+  const parts = path.split('/');
+  return parts[parts.length - 1] || '';
+};
+
+async function listFolderContents(folderPath: string): Promise<Set<string> | null> {
+  const key = getFolderKey(folderPath);
+  const existing = inflightFolderChecks.get(key);
+  if (existing) return existing;
+
+  const request = (async () => {
     const { data: list, error: listError } = await supabase.storage
       .from('test')
-      .list(path.split('/').slice(0, -1).join('/'));
+      .list(folderPath || '', { limit: 1000 });
 
     if (listError) {
       console.error('File list error:', listError);
-      return false;
+      return null;
     }
 
-    // Vérifie si le fichier est dans la liste
-    const fileName = path.split('/').pop();
-    return list.some(item => item.name === fileName);
+    return new Set((list || []).map((item) => item.name));
+  })();
+
+  inflightFolderChecks.set(key, request);
+
+  try {
+    return await request;
+  } finally {
+    inflightFolderChecks.delete(key);
+  }
+}
+
+export async function checkFileAvailability(path: string): Promise<boolean> {
+  if (!path) return false;
+
+  try {
+    const folderPath = extractFolderPath(path);
+    const fileName = extractFileName(path);
+    if (!fileName) return false;
+
+    const list = await listFolderContents(folderPath);
+    if (!list) return false;
+
+    return list.has(fileName);
   } catch (error) {
     console.error('File availability check error:', error);
     return false;
   }
+}
+
+export async function checkFilesAvailability(paths: string[]): Promise<Map<string, boolean>> {
+  const results = new Map<string, boolean>();
+  const grouped = new Map<string, string[]>();
+
+  for (const path of paths) {
+    if (!path) continue;
+    const folderPath = extractFolderPath(path);
+    if (!grouped.has(folderPath)) {
+      grouped.set(folderPath, []);
+    }
+    grouped.get(folderPath)!.push(path);
+  }
+
+  await Promise.all(
+    Array.from(grouped.entries()).map(async ([folderPath, folderPaths]) => {
+      const list = await listFolderContents(folderPath);
+
+      folderPaths.forEach((path) => {
+        const fileName = extractFileName(path);
+        if (!fileName || !list) {
+          results.set(path, false);
+          return;
+        }
+        results.set(path, list.has(fileName));
+      });
+    })
+  );
+
+  return results;
 }
 
 export async function cleanupUnavailableFiles(): Promise<void> {

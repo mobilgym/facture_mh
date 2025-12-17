@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, Link } from 'react-router-dom';
 import { Home, Building2, FolderOpen, BarChart3, DollarSign } from 'lucide-react';
 
 export default function MobileBottomNavigation() {
   const location = useLocation();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -13,8 +19,11 @@ export default function MobileBottomNavigation() {
     { path: '/budgets', icon: BarChart3, label: 'Budgets' }
   ];
 
-  return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+  const nav = (
+    <nav
+      className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 safe-area-inset"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
       <div className="flex">
         {menuItems.map(({ path, icon: Icon, label }) => (
           <Link
@@ -33,4 +42,8 @@ export default function MobileBottomNavigation() {
       </div>
     </nav>
   );
+
+  if (!mounted) return null;
+
+  return createPortal(nav, document.body);
 }
