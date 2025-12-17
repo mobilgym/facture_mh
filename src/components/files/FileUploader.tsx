@@ -120,9 +120,6 @@ export default function FileUploader({ folderId, onSuccess }: FileUploaderProps)
                   </Button>
                 </div>
                 
-                <p className="mt-3 md:mt-4 text-xs md:text-sm text-gray-500 hidden md:block">
-                  PDF, Images (JPG, PNG - converties en PDF), Documents (DOC, DOCX)
-                </p>
                 <p className="text-xs md:text-sm text-gray-500 hidden md:block">
                   Taille maximale : 100 MB
                 </p>

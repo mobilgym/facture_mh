@@ -192,17 +192,17 @@ export default function FileGridItem({
         )}
       </div>
 
-      <div className="p-2 pb-8">
+      <div className="p-2 pb-5">
         {/* En-tête compact */}
-        <div className="flex items-start space-x-2 mb-2">
+        <div className="flex items-start space-x-2 mb-1.5">
           <div className="flex-shrink-0">
-            <div className="p-2 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg">
-              <FileText className="h-4 w-4 text-blue-600" />
+            <div className="p-1.5 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg">
+              <FileText className="h-3.5 w-3.5 text-blue-600" />
             </div>
           </div>
           <div className="flex-1 min-w-0">
             <h3 
-              className="font-medium text-gray-900 text-sm leading-tight line-clamp-2 hover:text-blue-600 transition-colors cursor-pointer"
+              className="font-medium text-gray-900 text-[13px] leading-snug line-clamp-1 hover:text-blue-600 transition-colors cursor-pointer"
               title={file.name}
               onClick={(e) => {
                 e.stopPropagation();
@@ -215,9 +215,9 @@ export default function FileGridItem({
         </div>
 
         {/* Métadonnées compactes */}
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {/* Date */}
-          <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center justify-between text-[11px]">
             <div className="flex items-center text-gray-500">
               <Calendar className="h-3 w-3 mr-1" />
               <span>Date</span>
@@ -264,7 +264,7 @@ export default function FileGridItem({
                       const formattedDate = date.toISOString().split('T')[0];
                       onEdit(file.id, 'date', formattedDate);
                     }}
-                    className="opacity-0 group-hover/date:opacity-100 hover:bg-gray-100 hover:text-gray-700 transition-all duration-200 p-0.5"
+                    className="h-5 w-5 p-0 opacity-0 group-hover/date:opacity-100 hover:bg-gray-100 hover:text-gray-700 transition-all duration-200"
                     title="Modifier la date"
                   >
                     <Edit3 className="h-2.5 w-2.5" />
@@ -275,7 +275,7 @@ export default function FileGridItem({
           </div>
 
           {/* Montant */}
-          <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center justify-between text-[11px]">
             <div className="flex items-center text-gray-500">
               <EuroIcon className="h-3 w-3 mr-1" />
               <span>Montant</span>
@@ -321,7 +321,7 @@ export default function FileGridItem({
                       e.stopPropagation();
                       onEdit(file.id, 'amount', file.amount?.toString() || '0');
                     }}
-                    className="opacity-0 group-hover/amount:opacity-100 hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 p-0.5"
+                    className="h-5 w-5 p-0 opacity-0 group-hover/amount:opacity-100 hover:bg-blue-50 hover:text-blue-700 transition-all duration-200"
                     title="Modifier le montant"
                   >
                     <Edit3 className="h-2.5 w-2.5" />
@@ -333,7 +333,7 @@ export default function FileGridItem({
         </div>
 
         {/* Actions en bas */}
-        <div className="mt-2 pt-1 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onClick={(e) => e.stopPropagation()}>
+        <div className="mt-1 pt-1 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onClick={(e) => e.stopPropagation()}>
           <FileActions
             file={file}
             onDelete={() => onDeleteClick(file)}

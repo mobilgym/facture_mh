@@ -42,10 +42,10 @@ export default function FileActions({ file, onDelete, skipAvailabilityCheck = fa
           e.stopPropagation();
           window.open(file.url, '_blank');
         }}
-        className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 transition-all duration-200 hover:scale-105"
+        className="p-1.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 transition-all duration-200 hover:scale-105"
         title="Visualiser"
       >
-        <Eye className="h-4 w-4" />
+        <Eye className="h-3.5 w-3.5" />
       </button>
 
       <button
@@ -53,10 +53,10 @@ export default function FileActions({ file, onDelete, skipAvailabilityCheck = fa
           e.stopPropagation();
           onDelete();
         }}
-        className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 transition-all duration-200 hover:scale-105"
+        className="p-1.5 rounded-md bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 transition-all duration-200 hover:scale-105"
         title="Supprimer"
       >
-        <Trash2 className="h-4 w-4" />
+        <Trash2 className="h-3.5 w-3.5" />
       </button>
     </div>
   );

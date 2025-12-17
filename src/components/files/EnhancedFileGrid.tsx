@@ -395,33 +395,6 @@ export default function EnhancedFileGrid({
         selectedCount={selectedFiles.length}
       />
 
-      {/* Affichage de la période sélectionnée via navigation */}
-      {hasNavigationFilter && !hasActiveFilters && (
-        <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="h-2 w-2 bg-cyan-500 rounded-full"></div>
-              <p className="text-sm font-medium text-cyan-900">
-                {normalizedSelectedMonth
-                  ? `Période sélectionnée : ${new Date(parseInt(normalizedSelectedYear as string), parseInt(normalizedSelectedMonth) - 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`
-                  : `Période sélectionnée : Année ${normalizedSelectedYear}`
-                }
-              </p>
-            </div>
-            <p className="text-xs text-cyan-700">
-              {filteredFiles.length} facture{filteredFiles.length > 1 ? 's' : ''}
-              {filteredFiles.length > 0 && ` • ${new Intl.NumberFormat('fr-FR', {
-                style: 'currency',
-                currency: 'EUR'
-              }).format(filteredFiles.reduce((sum, f) => sum + (f.amount || 0), 0))}`}
-            </p>
-          </div>
-          <p className="text-xs text-cyan-600 mt-2">
-            💡 Utilisez les filtres ci-dessus pour rechercher dans toutes les périodes
-          </p>
-        </div>
-      )}
-
       {/* Affichage du nombre de résultats si des filtres de recherche sont actifs */}
       {hasActiveFilters && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
