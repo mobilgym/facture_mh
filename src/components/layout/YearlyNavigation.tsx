@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, Calendar, Receipt, TrendingUp } from 'lucide-react';
+import { ChevronDown, ChevronRight, Calendar, Receipt, TrendingUp, CheckSquare, Square } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -15,7 +15,7 @@ interface PeriodData {
 interface YearlyNavigationProps {
   periodsData: PeriodData[];
   selectedPeriod: { year: string | null; month: string | null };
-  onPeriodSelect: (period: { year: string; month: string }) => void;
+  onPeriodSelect: (period: { year: string | null; month: string | null }) => void;
 }
 
 interface YearGroup {
@@ -109,51 +109,64 @@ export default function YearlyNavigation({ periodsData, selectedPeriod, onPeriod
       
       {yearGroups.map((yearGroup) => {
         const isExpanded = expandedYears.has(yearGroup.year);
-        const isYearSelected = selectedPeriod.year === yearGroup.year;
+        // Une année est sélectionnée si l'année correspond ET qu'il n'y a pas de mois spécifique
+        const isYearSelected = selectedPeriod.year === yearGroup.year && !selectedPeriod.month;
 
         return (
           <div key={yearGroup.year} className="space-y-1">
             {/* En-tête de l'année */}
-            <motion.button
-              onClick={(e) => {
-                // Si on clique sur le titre de l'année, on sélectionne juste l'année (sans mois)
-                if (e.detail === 2) { // Double-clic
+            <div className={`flex items-center gap-2 p-3 rounded-lg transition-all ${
+              isYearSelected
+                ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200'
+                : 'border border-transparent'
+            }`}>
+              {/* Checkbox pour sélectionner toute l'année */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
                   onPeriodSelect({ year: yearGroup.year, month: null });
-                } else {
-                  toggleYear(yearGroup.year);
-                }
-              }}
-              className={`w-full flex items-center p-3 rounded-lg transition-all ${
-                isYearSelected
-                  ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200'
-                  : 'hover:bg-gray-50 border border-transparent'
-              }`}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              title="Cliquez pour expand/collapse, double-cliquez pour sélectionner l'année"
-            >
-              <div className="flex items-center flex-1">
-                {isExpanded ? (
-                  <ChevronDown className="h-4 w-4 mr-2 text-gray-600" />
+                }}
+                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                title="Sélectionner toute l'année"
+              >
+                {isYearSelected ? (
+                  <CheckSquare className="h-5 w-5 text-blue-600" />
                 ) : (
-                  <ChevronRight className="h-4 w-4 mr-2 text-gray-600" />
+                  <Square className="h-5 w-5 text-gray-400" />
                 )}
-                <span className="font-semibold text-gray-900">{yearGroup.year}</span>
-              </div>
+              </button>
+
+              {/* Reste du header cliquable pour expand/collapse */}
+              <motion.button
+                onClick={() => toggleYear(yearGroup.year)}
+                className="flex-1 flex items-center hover:bg-gray-50 rounded px-2 py-1 transition-colors"
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                title="Cliquez pour expand/collapse"
+              >
+                <div className="flex items-center flex-1">
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 mr-2 text-gray-600" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 mr-2 text-gray-600" />
+                  )}
+                  <span className="font-semibold text-gray-900">{yearGroup.year}</span>
+                </div>
               
-              <div className="flex items-center space-x-3 text-xs text-gray-500">
-                <span className="flex items-center">
-                  <Receipt className="h-3 w-3 mr-1" />
-                  {yearGroup.totalFiles}
-                </span>
-                {yearGroup.totalAmount > 0 && (
-                  <span className="flex items-center font-medium text-green-600">
-                    <TrendingUp className="h-3 w-3 mr-1" />
-                    {formatCurrency(yearGroup.totalAmount)}
+                <div className="flex items-center space-x-3 text-xs text-gray-500">
+                  <span className="flex items-center">
+                    <Receipt className="h-3 w-3 mr-1" />
+                    {yearGroup.totalFiles}
                   </span>
-                )}
-              </div>
-            </motion.button>
+                  {yearGroup.totalAmount > 0 && (
+                    <span className="flex items-center font-medium text-green-600">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      {formatCurrency(yearGroup.totalAmount)}
+                    </span>
+                  )}
+                </div>
+              </motion.button>
+            </div>
 
             {/* Mois de l'année */}
             <AnimatePresence>
@@ -192,7 +205,7 @@ export default function YearlyNavigation({ periodsData, selectedPeriod, onPeriod
                         }}
                       >
                         {/* En-tête du mois */}
-                        <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-4 w-4 text-gray-400" />
                             <span className="font-medium text-sm text-gray-900">

@@ -48,39 +48,39 @@ export default function ModernDashboard() {
   const toast = useToast();
   const { user } = useAuth();
   
-  // Fonction pour gérer la sélection de période avec basculement automatique vers factures en mobile
-  const handlePeriodSelect = (period: { year: string; month: string }) => {
+  // Fonction pour gérer la sélection de période avec basculement automatique vers factures
+  const handlePeriodSelect = (period: { year: string | null; month: string | null }) => {
     setSelectedPeriod(period);
-    
-    // En mobile (< lg), basculer automatiquement vers les factures
-    const isMobile = window.innerWidth < 1024; // lg breakpoint
-    if (isMobile && period.year && period.month) {
+
+    // Basculer automatiquement vers les factures quand une période (année ou mois) est sélectionnée
+    if (period.year) {
       setContentType('files');
     }
   };
 
-  // Data hooks
-  const { files, loading: loadingFiles, error: errorFiles, refetch: refetchFiles } = useFiles(
-    selectedPeriod.year && selectedPeriod.month ? selectedPeriod : {}
-  );
-  
-  const { invoices, loading: loadingInvoices, updateInvoice } = useSubmittedInvoices(
-    selectedPeriod.year && selectedPeriod.month ? selectedPeriod : {}
-  );
+  // Data hooks - Charger TOUS les fichiers pour permettre la recherche globale
+  const { files: allFiles, loading: loadingFiles, error: errorFiles, refetch: refetchFiles } = useFiles({});
 
-  // Compute stats
+  const { invoices: allInvoices, loading: loadingInvoices, updateInvoice } = useSubmittedInvoices({});
+
+  // Ne plus filtrer ici - le filtrage sera géré dans EnhancedFileGrid
+  // Cela permet à la recherche d'être complètement indépendante de la navigation
+  const files = allFiles;
+  const invoices = allInvoices;
+
+  // Compute stats basés sur TOUS les fichiers (pas seulement la période sélectionnée)
   const stats: QuickStats = useMemo(() => {
-    const totalFiles = files?.length || 0;
-    const totalInvoices = invoices?.length || 0;
+    const totalFiles = allFiles?.length || 0;
+    const totalInvoices = allInvoices?.length || 0;
     // Calculer le montant total à partir des fichiers (factures) ET des invoices soumises
-    const filesAmount = files?.reduce((sum, file) => sum + (file.amount || 0), 0) || 0;
-    const invoicesAmount = invoices?.reduce((sum, inv) => sum + (inv.amount || 0), 0) || 0;
+    const filesAmount = allFiles?.reduce((sum, file) => sum + (file.amount || 0), 0) || 0;
+    const invoicesAmount = allInvoices?.reduce((sum, inv) => sum + (inv.amount || 0), 0) || 0;
     const totalAmount = filesAmount + invoicesAmount;
 
     return { totalFiles, totalInvoices, totalAmount };
-  }, [files, invoices]);
+  }, [allFiles, allInvoices]);
 
-  // Organize data by periods
+  // Organize data by periods - utiliser TOUS les fichiers pour la navigation
   const periodsData = useMemo(() => {
     const periods = new Map<string, {
       year: string;
@@ -90,8 +90,8 @@ export default function ModernDashboard() {
       monthName: string;
     }>();
 
-    // Process files
-    files?.forEach(file => {
+    // Process ALL files
+    allFiles?.forEach(file => {
       const key = `${file.year}-${file.month}`;
       if (!periods.has(key)) {
         const date = new Date(parseInt(file.year), parseInt(file.month) - 1);
@@ -106,8 +106,8 @@ export default function ModernDashboard() {
       periods.get(key)?.files.push(file);
     });
 
-    // Process invoices
-    invoices?.forEach(invoice => {
+    // Process ALL invoices
+    allInvoices?.forEach(invoice => {
       const key = `${invoice.year}-${invoice.month}`;
       if (!periods.has(key)) {
         const date = new Date(parseInt(invoice.year), parseInt(invoice.month) - 1);
@@ -126,7 +126,7 @@ export default function ModernDashboard() {
       if (a.year !== b.year) return parseInt(b.year) - parseInt(a.year);
       return parseInt(b.month) - parseInt(a.month);
     });
-  }, [files, invoices]);
+  }, [allFiles, allInvoices]);
 
   const handleFileUpdate = async (fileId: string, updates: Partial<FileItem>) => {
     if (!user) {
@@ -165,10 +165,9 @@ export default function ModernDashboard() {
     }
   };
 
-  const filteredCurrentFiles = useMemo(() => {
-    if (!selectedPeriod.year || !selectedPeriod.month) return [];
-    return files?.filter(f => f.year === selectedPeriod.year && f.month === selectedPeriod.month) || [];
-  }, [files, selectedPeriod]);
+  // Toujours passer TOUS les fichiers à EnhancedFileGrid
+  // Le filtrage sera entièrement géré par EnhancedFileGrid lui-même
+  const filteredCurrentFiles = allFiles || [];
 
   // Génération des 12 derniers mois pour l'accordéon
   const last12Months = useMemo(() => {
@@ -332,11 +331,14 @@ export default function ModernDashboard() {
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2 text-sm text-gray-600">
                   <Home className="h-4 w-4" />
-                  {selectedPeriod.year && selectedPeriod.month && (
+                  {selectedPeriod.year && (
                     <>
                       <span>/</span>
                       <span className="font-medium">
-                        {periodsData.find(p => p.year === selectedPeriod.year && p.month === selectedPeriod.month)?.monthName}
+                        {selectedPeriod.month
+                          ? periodsData.find(p => p.year === selectedPeriod.year && p.month === selectedPeriod.month)?.monthName
+                          : `Année ${selectedPeriod.year}`
+                        }
                       </span>
                     </>
                   )}
@@ -452,11 +454,6 @@ export default function ModernDashboard() {
                                 onClick={() => {
                                   if (month.filesCount > 0) {
                                     handlePeriodSelect({ year: month.year, month: month.month });
-                                    // Pour desktop, basculer vers les factures explicitement
-                                    const isMobile = window.innerWidth < 1024;
-                                    if (!isMobile) {
-                                      setContentType('files');
-                                    }
                                   }
                                 }}
                               >
@@ -531,22 +528,13 @@ export default function ModernDashboard() {
                   exit={{ opacity: 0, y: -20 }}
                                           className="space-y-4 md:space-y-6"
                       >
-                        {selectedPeriod.year && selectedPeriod.month ? (
-                          <EnhancedFileGrid
-                            files={filteredCurrentFiles}
-                            onDelete={handleFileDelete}
-                            onUpdate={refetchFiles}
-                            onUpdateFile={handleFileUpdate}
-                          />
-                        ) : (
-                          <div className="text-center py-8 md:py-12">
-                            <Receipt className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400" />
-                            <h3 className="mt-2 text-sm font-medium text-gray-900">Sélectionnez une période</h3>
-                            <p className="mt-1 text-sm text-gray-500 px-4">
-                              Choisissez une année et un mois dans le menu pour voir les factures.
-                            </p>
-                          </div>
-                        )}
+                        <EnhancedFileGrid
+                          files={filteredCurrentFiles}
+                          onDelete={handleFileDelete}
+                          onUpdate={refetchFiles}
+                          onUpdateFile={handleFileUpdate}
+                          selectedPeriod={selectedPeriod}
+                        />
                 </motion.div>
               )}
 
