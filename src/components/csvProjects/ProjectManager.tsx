@@ -120,16 +120,16 @@ export function ProjectManager({
   const hasUnsavedWork = currentCsvData && (currentLettrageState?.csvPayments?.length || 0) > 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 budget-container">
       
       {/* Barre d'actions principales */}
-      <div className="flex flex-wrap items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 bg-gradient-to-r from-blue-50/80 to-indigo-50/70 rounded-xl border border-blue-200/70">
         <div className="flex items-center gap-2 text-blue-700">
-          <FolderOpen className="w-5 h-5" />
-          <span className="font-medium">Gestion des Projets CSV</span>
+          <FolderOpen className="w-4 h-4" />
+          <span className="text-fit-sm font-semibold">Gestion des Projets CSV</span>
         </div>
         
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           {/* Sauvegarde rapide */}
           {csvProjects.currentProject && hasUnsavedWork && (
             <Button
@@ -137,12 +137,12 @@ export function ProjectManager({
               disabled={isSaving}
               variant="ghost"
               size="sm"
-              className="text-blue-700 hover:bg-blue-100"
+              className="text-blue-700 hover:bg-blue-100/70 text-fit-xs px-3 py-1.5"
             >
               {isSaving ? (
-                <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" />
               ) : (
-                <Save className="w-4 h-4 mr-1" />
+                <Save className="w-3.5 h-3.5 mr-1" />
               )}
               Sauvegarde rapide
             </Button>
@@ -152,10 +152,10 @@ export function ProjectManager({
           <Button
             onClick={() => setShowCreateModal(true)}
             disabled={!currentCsvData}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="neon-cta text-fit-xs px-3 py-1.5"
             size="sm"
           >
-            <Save className="w-4 h-4 mr-1" />
+            <Save className="w-3.5 h-3.5 mr-1" />
             {csvProjects.currentProject ? 'Sauvegarder sous...' : 'Enregistrer Projet'}
           </Button>
 
@@ -164,8 +164,9 @@ export function ProjectManager({
             onClick={() => setShowProjectsList(true)}
             variant="outline"
             size="sm"
+            className="neon-cta-outline text-fit-xs px-3 py-1.5"
           >
-            <FolderOpen className="w-4 h-4 mr-1" />
+            <FolderOpen className="w-3.5 h-3.5 mr-1" />
             Mes Projets
           </Button>
         </div>
@@ -173,17 +174,17 @@ export function ProjectManager({
 
       {/* Informations projet actuel */}
       {csvProjects.currentProject && (
-        <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
+        <div className="p-3 bg-green-50/80 rounded-lg border border-green-200/70">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="p-2 bg-green-100 rounded-lg shrink-0">
                 <FileText className="w-4 h-4 text-green-600" />
               </div>
-              <div>
-                <h4 className="font-medium text-green-900">
+              <div className="min-w-0">
+                <h4 className="text-fit-sm font-semibold text-green-900 truncate">
                   {csvProjects.currentProject.name}
                 </h4>
-                <div className="flex items-center gap-4 text-sm text-green-700 mt-1">
+                <div className="flex flex-wrap items-center gap-3 text-fit-xs text-green-700 mt-1">
                   <div className="flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
                     {new Date(csvProjects.currentProject.project_date).toLocaleDateString('fr-FR')}
@@ -206,7 +207,7 @@ export function ProjectManager({
             </div>
             
             {hasUnsavedWork && (
-              <div className="flex items-center gap-1 text-orange-600 text-sm">
+              <div className="flex items-center gap-1 text-orange-600 text-fit-xs">
                 <AlertCircle className="w-4 h-4" />
                 Modifications non sauvegardées
               </div>
@@ -214,7 +215,7 @@ export function ProjectManager({
           </div>
           
           {csvProjects.currentProject.description && (
-            <p className="text-sm text-green-700 mt-3">
+            <p className="text-fit-xs text-green-700 mt-3">
               {csvProjects.currentProject.description}
             </p>
           )}
@@ -223,9 +224,9 @@ export function ProjectManager({
 
       {/* Message d'aide */}
       {!currentCsvData && (
-        <div className="p-4 bg-gray-50 rounded-lg text-center">
-          <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-          <p className="text-sm text-gray-600">
+        <div className="p-3 bg-gray-50/80 rounded-lg text-center border border-gray-200/70">
+          <FileText className="w-7 h-7 text-gray-400 mx-auto mb-2" />
+          <p className="text-fit-xs text-gray-600">
             Importez un fichier CSV pour commencer un nouveau projet de lettrage
           </p>
         </div>

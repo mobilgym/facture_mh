@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileSpreadsheet, Zap, Search, Filter, Eye, CheckCircle, XCircle, RotateCcw, Download } from 'lucide-react';
+import { Upload, FileSpreadsheet, Zap, Search, Eye, CheckCircle, RotateCcw } from 'lucide-react';
 import { useLettrage } from '../../hooks/useLettrage';
 import { useCompany } from '../../contexts/CompanyContext';
 import { LettrageStats } from './LettrageStats';
@@ -198,26 +198,28 @@ export function LettrageInterface() {
   if (!selectedCompany) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Sélectionnez une entreprise pour commencer</p>
+        <div className="glass-panel rounded-xl px-4 py-3">
+          <p className="text-fit-sm text-gray-600">Sélectionnez une entreprise pour commencer</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 budget-container">
       {/* En-tête avec titre et actions principales */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+      <div className="glass-panel-strong rounded-2xl p-4 sm:p-5 bg-gradient-to-r from-cyan-50/80 via-white/70 to-emerald-50/70 budget-container">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-fit-lg font-semibold text-gray-900 mb-2 tracking-tight">
               🎯 Lettrage Automatique
             </h2>
-            <p className="text-gray-600">
+            <p className="text-fit-sm text-gray-600">
               Importez vos paiements CSV et connectez-les automatiquement à vos factures
             </p>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Import CSV */}
             <input
               ref={fileInputRef}
@@ -229,9 +231,9 @@ export function LettrageInterface() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={lettrage.isLoading}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-3 py-1.5 neon-cta text-fit-xs disabled:opacity-50"
             >
-              <Upload className="w-4 h-4" />
+              <Upload className="w-3.5 h-3.5" />
               Importer CSV
             </button>
 
@@ -240,9 +242,9 @@ export function LettrageInterface() {
               <button
                 onClick={handleAutomaticMatching}
                 disabled={lettrage.isLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-3 py-1.5 neon-cta-outline text-fit-xs disabled:opacity-50"
               >
-                <Zap className="w-4 h-4" />
+                <Zap className="w-3.5 h-3.5" />
                 Matching Auto
               </button>
             )}
@@ -251,9 +253,9 @@ export function LettrageInterface() {
             {lettrage.csvPayments.length > 0 && (
               <button
                 onClick={lettrage.resetLettrage}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                className="inline-flex items-center gap-2 px-3 py-1.5 neon-cta-outline text-fit-xs"
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="w-3.5 h-3.5" />
                 Reset
               </button>
             )}
@@ -262,9 +264,9 @@ export function LettrageInterface() {
       </div>
 
       {/* Configuration et période */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+        <div className="glass-panel rounded-xl p-3 sm:p-4 budget-container">
+          <label className="block text-fit-xs font-semibold text-gray-700 mb-2">
             Période de recherche
           </label>
           <div className="space-y-2">
@@ -272,19 +274,19 @@ export function LettrageInterface() {
               type="date"
               value={lettrage.selectedPeriod.startDate}
               onChange={(e) => lettrage.updatePeriod(e.target.value, lettrage.selectedPeriod.endDate)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 text-fit-xs border border-cyan-100/80 rounded-lg bg-white/80 focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
             />
             <input
               type="date"
               value={lettrage.selectedPeriod.endDate}
               onChange={(e) => lettrage.updatePeriod(lettrage.selectedPeriod.startDate, e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 text-fit-xs border border-cyan-100/80 rounded-lg bg-white/80 focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
             />
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="glass-panel rounded-xl p-3 sm:p-4 budget-container">
+          <label className="block text-fit-xs font-semibold text-gray-700 mb-2">
             Tolérance de matching (€)
           </label>
           <input
@@ -293,22 +295,22 @@ export function LettrageInterface() {
             min="0"
             value={tolerance}
             onChange={(e) => setTolerance(parseFloat(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 text-fit-xs border border-cyan-100/80 rounded-lg bg-white/80 focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
           />
         </div>
 
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="glass-panel rounded-xl p-3 sm:p-4 budget-container">
+          <label className="block text-fit-xs font-semibold text-gray-700 mb-2">
             Recherche dans CSV
           </label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Montant, date, description..."
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-3 py-2 text-fit-xs border border-cyan-100/80 rounded-lg bg-white/80 focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
             />
           </div>
         </div>
@@ -331,80 +333,82 @@ export function LettrageInterface() {
 
       {/* Onglets et mode d'affichage */}
       {lettrage.csvPayments.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="glass-panel rounded-xl border border-cyan-100/70 overflow-hidden budget-container">
+          <div className="flex flex-col gap-3 p-3 sm:p-4 border-b border-cyan-100/70">
             {/* Onglets */}
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setActiveTab('all')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'all'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                🎯 Tout ({stats.totalInvoices + stats.totalPayments})
-              </button>
-              <button
-                onClick={() => setActiveTab('matched')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'matched'
-                    ? 'bg-white text-green-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                ✅ Lettrés ({stats.matchedInvoices})
-              </button>
-              <button
-                onClick={() => setActiveTab('unmatched')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'unmatched'
-                    ? 'bg-white text-orange-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                ⏳ Non lettrés ({stats.unmatchedInvoices + stats.unmatchedPayments})
-              </button>
-            </div>
-
-            {/* Mode d'affichage */}
-            <div className="flex items-center gap-2">
-              {lettrage.matches.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1 bg-white/80 rounded-full p-1 border border-cyan-100/70">
                 <button
-                  onClick={() => setShowPreview(!showPreview)}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                  onClick={() => setActiveTab('all')}
+                  className={`px-3 py-1.5 rounded-full text-fit-xs font-semibold transition-all ${
+                    activeTab === 'all'
+                      ? 'bg-white text-cyan-700 shadow-sm'
+                      : 'text-gray-600 hover:text-cyan-700'
+                  }`}
                 >
-                  <Eye className="w-4 h-4" />
-                  Aperçu
+                  🎯 Tout ({stats.totalInvoices + stats.totalPayments})
                 </button>
-              )}
-              
-              <button
-                onClick={() => setIsCanvasMode(!isCanvasMode)}
-                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                  isCanvasMode
-                    ? 'bg-purple-100 text-purple-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                🎨 Mode Canvas
-              </button>
-
-              {lettrage.matches.length > 0 && (
                 <button
-                  onClick={handleValidateAll}
-                  disabled={lettrage.isLoading}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                  onClick={() => setActiveTab('matched')}
+                  className={`px-3 py-1.5 rounded-full text-fit-xs font-semibold transition-all ${
+                    activeTab === 'matched'
+                      ? 'bg-white text-emerald-600 shadow-sm'
+                      : 'text-gray-600 hover:text-emerald-600'
+                  }`}
                 >
-                  <CheckCircle className="w-4 h-4" />
-                  Valider Tout
+                  ✅ Lettrés ({stats.matchedInvoices})
                 </button>
-              )}
+                <button
+                  onClick={() => setActiveTab('unmatched')}
+                  className={`px-3 py-1.5 rounded-full text-fit-xs font-semibold transition-all ${
+                    activeTab === 'unmatched'
+                      ? 'bg-white text-amber-600 shadow-sm'
+                      : 'text-gray-600 hover:text-amber-600'
+                  }`}
+                >
+                  ⏳ Non lettrés ({stats.unmatchedInvoices + stats.unmatchedPayments})
+                </button>
+              </div>
+
+              {/* Mode d'affichage */}
+              <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                {lettrage.matches.length > 0 && (
+                  <button
+                    onClick={() => setShowPreview(!showPreview)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 neon-cta-outline text-fit-xs"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    Aperçu
+                  </button>
+                )}
+                
+                <button
+                  onClick={() => setIsCanvasMode(!isCanvasMode)}
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-fit-xs font-semibold transition-all ${
+                    isCanvasMode
+                      ? 'bg-purple-100 text-purple-700'
+                      : 'bg-white/80 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  🎨 Mode Canvas
+                </button>
+
+                {lettrage.matches.length > 0 && (
+                  <button
+                    onClick={handleValidateAll}
+                    disabled={lettrage.isLoading}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 neon-cta text-fit-xs disabled:opacity-50"
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    Valider Tout
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Contenu selon le mode */}
-          <div className="p-6">
+          <div className="p-3 sm:p-4">
             {showPreview ? (
               <LettragePreview
                 matches={lettrage.matches}
@@ -424,46 +428,46 @@ export function LettrageInterface() {
                 onInvoiceClick={handleInvoiceClick}
               />
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Liste des factures */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  <h3 className="text-fit-md font-semibold text-gray-900 mb-3">
                     📄 Factures ({filteredData.invoices.length})
                   </h3>
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                  <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                     {filteredData.invoices.map(invoice => {
                       const isMatched = lettrage.matches.some(m => m.invoiceId === invoice.id);
                       return (
                         <div
                           key={invoice.id}
-                          className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                          className={`p-3 rounded-lg border transition-all cursor-pointer budget-container ${
                             isMatched
-                              ? 'border-green-200 bg-green-50 hover:border-green-300'
-                              : 'border-gray-200 bg-white hover:border-blue-300'
+                              ? 'border-green-200/80 bg-green-50/70 hover:border-green-300'
+                              : 'border-cyan-100/70 bg-white/80 hover:border-cyan-300'
                           }`}
                           onClick={() => handleInvoiceClick(invoice)}
                           title="Cliquer pour voir les détails"
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <p className="font-medium text-gray-900 flex items-center gap-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-fit-sm font-semibold text-gray-900 flex items-center gap-2 truncate">
                                 {invoice.name}
-                                <span className="text-xs text-blue-600">🔍</span>
+                                <span className="text-fit-xs text-blue-600">🔍</span>
                               </p>
-                              <p className="text-sm text-gray-600">
+                              <p className="text-fit-xs text-gray-600">
                                 {new Date(invoice.document_date || '').toLocaleDateString('fr-FR')}
                               </p>
                             </div>
-                            <div className="text-right">
-                              <p className="text-lg font-bold text-gray-900">
-                                {new Intl.NumberFormat('fr-FR', { 
-                                  style: 'currency', 
-                                  currency: 'EUR' 
+                            <div className="text-right shrink-0">
+                              <p className="text-fit-sm font-bold text-gray-900">
+                                {new Intl.NumberFormat('fr-FR', {
+                                  style: 'currency',
+                                  currency: 'EUR'
                                 }).format(invoice.amount || 0)}
                               </p>
                               {isMatched && (
-                                <span className="inline-flex items-center gap-1 text-green-600 text-sm">
-                                  <CheckCircle className="w-4 h-4" />
+                                <span className="inline-flex items-center gap-1 text-green-600 text-fit-xs">
+                                  <CheckCircle className="w-3.5 h-3.5" />
                                   Lettré
                                 </span>
                               )}
@@ -489,19 +493,19 @@ export function LettrageInterface() {
 
       {/* État initial */}
       {lettrage.csvPayments.length === 0 && (
-        <div className="text-center py-12">
-          <FileSpreadsheet className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <div className="text-center py-10 glass-panel rounded-2xl border border-cyan-100/70">
+          <FileSpreadsheet className="w-12 h-12 text-cyan-400 mx-auto mb-3" />
+          <h3 className="text-fit-md font-semibold text-gray-900 mb-2">
             Commencez par importer votre fichier CSV
           </h3>
-          <p className="text-gray-600 mb-6">
+          <p className="text-fit-sm text-gray-600 mb-4">
             Le fichier doit contenir les colonnes "date" et "montant"
           </p>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 neon-cta text-fit-xs"
           >
-            <Upload className="w-5 h-5" />
+            <Upload className="w-4 h-4" />
             Choisir un fichier CSV
           </button>
         </div>

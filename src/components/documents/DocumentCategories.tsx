@@ -1,6 +1,5 @@
 import React from 'react';
 import { Folder, Users, Calculator, Scale, Building2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 const categories = [
   { id: 'rh', name: 'Ressources Humaines', icon: Users },
@@ -16,19 +15,19 @@ interface DocumentCategoriesProps {
 
 export default function DocumentCategories({ selectedCategory, onSelectCategory }: DocumentCategoriesProps) {
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="p-4 border-b">
-        <h2 className="text-lg font-medium text-gray-900">Catégories</h2>
+    <div className="glass-panel rounded-xl budget-container">
+      <div className="p-3 sm:p-4 border-b border-cyan-100/70">
+        <h2 className="text-fit-md font-semibold text-gray-900">Catégories</h2>
       </div>
       <div className="p-2">
         <button
           onClick={() => onSelectCategory(null)}
-          className={`w-full flex items-center p-2 rounded-md hover:bg-gray-100 ${
-            selectedCategory === null ? 'bg-blue-50 text-blue-700' : ''
+          className={`w-full flex items-center gap-2 p-2 rounded-md hover:bg-cyan-50/60 transition-colors ${
+            selectedCategory === null ? 'bg-cyan-100/70 text-cyan-800' : 'text-gray-700'
           }`}
         >
-          <Folder className="h-5 w-5 mr-3 text-gray-400" />
-          <span>Tous les documents</span>
+          <Folder className="h-4 w-4 text-cyan-500 shrink-0" />
+          <span className="text-fit-sm font-medium truncate">Tous les documents</span>
         </button>
         {categories.map(category => {
           const Icon = category.icon;
@@ -36,12 +35,12 @@ export default function DocumentCategories({ selectedCategory, onSelectCategory 
             <button
               key={category.id}
               onClick={() => onSelectCategory(category.id)}
-              className={`w-full flex items-center p-2 rounded-md hover:bg-gray-100 ${
-                selectedCategory === category.id ? 'bg-blue-50 text-blue-700' : ''
+              className={`w-full flex items-center gap-2 p-2 rounded-md hover:bg-cyan-50/60 transition-colors ${
+                selectedCategory === category.id ? 'bg-cyan-100/70 text-cyan-800' : 'text-gray-700'
               }`}
             >
-              <Icon className="h-5 w-5 mr-3 text-gray-400" />
-              <span>{category.name}</span>
+              <Icon className="h-4 w-4 text-cyan-500 shrink-0" />
+              <span className="text-fit-sm font-medium truncate">{category.name}</span>
             </button>
           );
         })}

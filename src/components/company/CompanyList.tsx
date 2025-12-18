@@ -61,20 +61,20 @@ export default function CompanyList() {
 
   return (
     <>
-      <div className="py-1">
-        <div className="px-4 py-2">
+      <div className="py-1 budget-container">
+        <div className="px-2 sm:px-4 py-2">
           <Button
             variant="ghost"
-            className="w-full justify-start text-gray-600"
+            className="w-full justify-start text-gray-600 neon-cta-outline px-3 py-2 text-fit-xs"
             onClick={() => setIsCreateModalOpen(true)}
           >
-            <Plus className="h-5 w-5 mr-2" />
+            <Plus className="h-4 w-4 mr-2" />
             Nouvelle société
           </Button>
         </div>
         
         {companies.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 text-sm">
+          <div className="p-4 text-center text-gray-500 text-fit-sm">
             Aucune société disponible
           </div>
         ) : (

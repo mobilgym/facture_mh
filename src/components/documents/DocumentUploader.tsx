@@ -60,30 +60,30 @@ export default function DocumentUploader({ categoryId, onSuccess }: DocumentUplo
   });
 
   return (
-    <div className="mb-8">
+    <div className="mb-4 sm:mb-6 budget-container">
       <motion.div
         {...getRootProps()}
-        className={`relative border-2 border-dashed rounded-lg transition-colors ${
-          isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+        className={`relative border-2 border-dashed rounded-xl transition-colors bg-white/70 backdrop-blur-xl ${
+          isDragActive ? 'border-cyan-500 bg-cyan-50/70' : 'border-cyan-200/70'
         }`}
         animate={{
           scale: isDragActive ? 1.02 : 1,
-          borderColor: isDragActive ? '#3B82F6' : '#D1D5DB'
+          borderColor: isDragActive ? '#06B6D4' : '#A5F3FC'
         }}
       >
         <input {...getInputProps()} />
         
-        <div className="p-12 text-center">
+        <div className="p-4 sm:p-8 text-center">
           <motion.div
             animate={{ 
               scale: isDragActive ? 1.1 : 1,
-              y: isDragActive ? -10 : 0
+              y: isDragActive ? -8 : 0
             }}
             transition={{ type: "spring", stiffness: 300 }}
           >
             <Upload
-              className={`mx-auto h-12 w-12 ${
-                isDragActive ? 'text-blue-500' : 'text-gray-400'
+              className={`mx-auto h-10 w-10 ${
+                isDragActive ? 'text-cyan-600' : 'text-cyan-500'
               }`}
             />
           </motion.div>
@@ -97,13 +97,13 @@ export default function DocumentUploader({ categoryId, onSuccess }: DocumentUplo
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <Button type="button" className="mt-4">
+                <Button type="button" className="mt-4 neon-cta px-4 py-2">
                   {isDragActive ? 'Déposez les documents ici' : 'Importer des documents'}
                 </Button>
-                <p className="mt-2 text-sm text-gray-500">
+                <p className="mt-2 text-fit-xs text-gray-500">
                   PDF, Word (DOC, DOCX), Excel (XLS, XLSX), Images (JPG, PNG)
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-fit-xs text-gray-500">
                   Taille maximale : 100 MB
                 </p>
               </motion.div>

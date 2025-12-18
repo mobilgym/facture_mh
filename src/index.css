@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,6 +10,12 @@
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+  }
+
+  .budget-page,
+  .app-page {
+    font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+    font-variant-numeric: tabular-nums;
   }
 
   /* Optimiser les touches tactiles */
@@ -89,6 +97,27 @@
   .mobile-nav-safe-area {
     @apply pb-16 md:pb-0;
   }
+
+  .glass-panel {
+    @apply bg-white/75 backdrop-blur-xl border border-cyan-100/70 shadow-[0_10px_30px_rgba(15,23,42,0.08)];
+  }
+
+  .glass-panel-strong {
+    @apply bg-white/85 backdrop-blur-2xl border border-cyan-100/60 shadow-[0_12px_36px_rgba(14,116,144,0.15)];
+  }
+
+  .neon-cta {
+    @apply text-gray-900 font-semibold rounded-full border border-cyan-200/80 bg-gradient-to-r from-cyan-300 via-sky-300 to-emerald-300 shadow-[0_0_24px_rgba(34,211,238,0.45)] transition-all duration-200;
+  }
+
+  .neon-cta-outline {
+    @apply text-cyan-700 font-semibold rounded-full border border-cyan-300/70 bg-white/70 backdrop-blur-lg shadow-[0_0_18px_rgba(14,165,233,0.25)] transition-all duration-200;
+  }
+
+  .neon-cta:hover,
+  .neon-cta-outline:hover {
+    @apply scale-[1.02] shadow-[0_0_28px_rgba(34,211,238,0.6)];
+  }
 }
 
 @layer utilities {
@@ -163,5 +192,39 @@
   .slider::-moz-range-thumb:hover {
     transform: scale(1.1);
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  }
+
+  .budget-container {
+    container-type: inline-size;
+  }
+
+  .text-fit-xs {
+    font-size: clamp(0.65rem, 2.2vw, 0.78rem);
+    font-size: clamp(0.65rem, 2.4cqi, 0.78rem);
+    line-height: 1.2;
+  }
+
+  .text-fit-sm {
+    font-size: clamp(0.75rem, 2.6vw, 0.92rem);
+    font-size: clamp(0.75rem, 2.8cqi, 0.92rem);
+    line-height: 1.2;
+  }
+
+  .text-fit-md {
+    font-size: clamp(0.9rem, 3.2vw, 1.08rem);
+    font-size: clamp(0.9rem, 3.4cqi, 1.08rem);
+    line-height: 1.2;
+  }
+
+  .text-fit-lg {
+    font-size: clamp(1.05rem, 3.8vw, 1.35rem);
+    font-size: clamp(1.05rem, 4cqi, 1.35rem);
+    line-height: 1.1;
+  }
+
+  .text-fit-xl {
+    font-size: clamp(1.25rem, 4.8vw, 1.75rem);
+    font-size: clamp(1.25rem, 5cqi, 1.75rem);
+    line-height: 1.05;
   }
 }
