@@ -1,5 +1,7 @@
-import React from 'react';
-import { Wallet, TrendingUp, FileText, DollarSign } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Wallet, TrendingUp, FileText, DollarSign, Edit2, Check, X } from 'lucide-react';
+import { getTreasuryAdjustment, updateTreasuryAdjustment } from '@/lib/services/companyService';
+import { useCompany } from '@/contexts/CompanyContext';
 
 interface TreasuryCardProps {
   totalBudgets: number;
@@ -20,12 +22,63 @@ export function TreasuryCard({
   vteInvoicesCount,
   className = ''
 }: TreasuryCardProps) {
+  const { selectedCompany } = useCompany();
+  const [adjustment, setAdjustment] = useState<number>(0);
+  const [isEditingAdjustment, setIsEditingAdjustment] = useState(false);
+  const [adjustmentInput, setAdjustmentInput] = useState<string>('0');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Charger l'ajustement depuis la base de données au montage
+  useEffect(() => {
+    const loadAdjustment = async () => {
+      if (!selectedCompany?.id) return;
+
+      try {
+        const value = await getTreasuryAdjustment(selectedCompany.id);
+        setAdjustment(value);
+        setAdjustmentInput(value.toString());
+      } catch (error) {
+        console.error('Failed to load treasury adjustment:', error);
+      }
+    };
+
+    loadAdjustment();
+  }, [selectedCompany?.id]);
+
+  // Sauvegarder l'ajustement dans la base de données
+  const saveAdjustment = async () => {
+    if (!selectedCompany?.id) return;
+
+    const value = parseFloat(adjustmentInput) || 0;
+    setIsLoading(true);
+
+    try {
+      await updateTreasuryAdjustment(selectedCompany.id, value);
+      setAdjustment(value);
+      setIsEditingAdjustment(false);
+    } catch (error) {
+      console.error('Failed to save treasury adjustment:', error);
+      // Restaurer la valeur précédente en cas d'erreur
+      setAdjustmentInput(adjustment.toString());
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const cancelAdjustment = () => {
+    setAdjustmentInput(adjustment.toString());
+    setIsEditingAdjustment(false);
+  };
+
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
       currency: 'EUR'
     }).format(amount);
   };
+
+  // Calculer la trésorerie ajustée
+  const adjustedTreasury = globalTreasury + adjustment;
 
   return (
     <div className={`budget-container bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl border border-blue-200 p-4 sm:p-6 ${className}`}>
@@ -44,7 +97,7 @@ export function TreasuryCard({
       {/* Montant principal */}
       <div className="mb-4 sm:mb-6 text-center">
         <div className="text-fit-xl font-bold text-blue-600 mb-1 truncate tabular-nums">
-          {formatAmount(globalTreasury)}
+          {formatAmount(adjustedTreasury)}
         </div>
         <p className="text-fit-xs text-gray-600">
           Trésorerie totale disponible
@@ -102,15 +155,81 @@ export function TreasuryCard({
           </div>
           <div className="border-t pt-2 mt-2">
             <div className="flex justify-between items-center text-fit-xs font-semibold gap-2">
-              <span className="text-gray-900 truncate">Trésorerie globale:</span>
+              <span className="text-gray-900 truncate">Trésorerie calculée:</span>
               <span className="text-blue-600 truncate">{formatAmount(globalTreasury)}</span>
+            </div>
+          </div>
+
+          {/* Section Ajustement */}
+          <div className="border-t pt-2 mt-2">
+            <div className="flex justify-between items-center text-fit-xs gap-2 mb-2">
+              <span className="text-gray-700 font-medium truncate">Ajustement trésorerie:</span>
+              {!isEditingAdjustment ? (
+                <div className="flex items-center gap-2">
+                  <span className={`font-medium truncate ${adjustment >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {adjustment >= 0 ? '+' : ''}{formatAmount(adjustment)}
+                  </span>
+                  <button
+                    onClick={() => setIsEditingAdjustment(true)}
+                    className="p-1 hover:bg-gray-100 rounded transition-colors shrink-0"
+                    title="Modifier l'ajustement"
+                  >
+                    <Edit2 className="h-3.5 w-3.5 text-gray-500" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={adjustmentInput}
+                    onChange={(e) => setAdjustmentInput(e.target.value)}
+                    className="w-24 px-2 py-1 text-fit-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0.00"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveAdjustment();
+                      if (e.key === 'Escape') cancelAdjustment();
+                    }}
+                  />
+                  <button
+                    onClick={saveAdjustment}
+                    disabled={isLoading}
+                    className="p-1 hover:bg-green-100 rounded transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Sauvegarder"
+                  >
+                    {isLoading ? (
+                      <div className="h-3.5 w-3.5 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Check className="h-3.5 w-3.5 text-green-600" />
+                    )}
+                  </button>
+                  <button
+                    onClick={cancelAdjustment}
+                    className="p-1 hover:bg-red-100 rounded transition-colors shrink-0"
+                    title="Annuler"
+                  >
+                    <X className="h-3.5 w-3.5 text-red-600" />
+                  </button>
+                </div>
+              )}
+            </div>
+            <p className="text-fit-xs text-gray-500 italic">
+              Montant pour équilibrer la trésorerie réelle
+            </p>
+          </div>
+
+          <div className="border-t pt-2 mt-2">
+            <div className="flex justify-between items-center text-fit-xs font-semibold gap-2">
+              <span className="text-gray-900 truncate">Trésorerie globale:</span>
+              <span className="text-blue-600 truncate">{formatAmount(adjustedTreasury)}</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Indicateur visuel */}
-      {globalTreasury > 0 && (
+      {adjustedTreasury > 0 && (
         <div className="mt-4 text-center">
           <div className="inline-flex items-center px-3 py-1 rounded-full text-fit-xs font-medium bg-green-100 text-green-700">
             <TrendingUp className="h-3 w-3 mr-1" />
@@ -118,8 +237,8 @@ export function TreasuryCard({
           </div>
         </div>
       )}
-      
-      {globalTreasury < 0 && (
+
+      {adjustedTreasury < 0 && (
         <div className="mt-4 text-center">
           <div className="inline-flex items-center px-3 py-1 rounded-full text-fit-xs font-medium bg-red-100 text-red-700">
             <TrendingUp className="h-3 w-3 mr-1 transform rotate-180" />
