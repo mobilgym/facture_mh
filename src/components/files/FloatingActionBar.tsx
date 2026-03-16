@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Wallet, Tag, Trash2, Download, Archive } from 'lucide-react';
+import { X, Wallet, Tag, Trash2, Download, Archive, Printer } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 interface FloatingActionBarProps {
@@ -76,6 +76,17 @@ export default function FloatingActionBar({
               >
                 <Archive className="h-4 w-4" />
                 <span className="hidden sm:inline ml-1">Retirer</span>
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleAction('print')}
+                className="hover:bg-slate-50 hover:text-slate-800 transition-colors duration-200"
+                title="Imprimer"
+              >
+                <Printer className="h-4 w-4" />
+                <span className="hidden sm:inline ml-1">Imprimer</span>
               </Button>
 
               <Button

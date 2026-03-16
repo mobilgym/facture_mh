@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Eye, FileText, Edit3, Save, X, Search } from 'lucide-react';
+import { Download, Eye, FileText, Edit3, Save, X, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import Button from '@/components/ui/Button';
+import DocumentPreviewModal, { type PreviewDocument } from '@/components/files/DocumentPreviewModal';
 import type { SubmittedInvoice } from '@/types/invoice';
 
 interface SubmittedInvoicesListProps {
@@ -19,6 +20,7 @@ interface EditingState {
 export default function SubmittedInvoicesList({ invoices, onUpdateInvoice }: SubmittedInvoicesListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [editing, setEditing] = useState<EditingState | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<PreviewDocument | null>(null);
 
   // Recherche intelligente
   const filteredInvoices = useMemo(() => {
@@ -83,8 +85,17 @@ export default function SubmittedInvoicesList({ invoices, onUpdateInvoice }: Sub
     }).format(amount);
   };
 
+  const openPreview = (invoice: SubmittedInvoice) => {
+    setPreviewDocument({
+      name: invoice.file_name || 'Document sans nom',
+      url: invoice.file_url,
+      type: 'application/pdf'
+    });
+  };
+
   return (
-    <div className="space-y-4">
+    <>
+      <div className="space-y-4">
       {/* Barre de recherche */}
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -248,9 +259,9 @@ export default function SubmittedInvoicesList({ invoices, onUpdateInvoice }: Sub
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => window.open(invoice.file_url, '_blank')}
+                        onClick={() => openPreview(invoice)}
                         className="hover:bg-blue-50 hover:text-blue-600 transition-all duration-200"
-                        title="Visualiser"
+                        title="Apercu rapide"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -404,11 +415,11 @@ export default function SubmittedInvoicesList({ invoices, onUpdateInvoice }: Sub
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => window.open(invoice.file_url, '_blank')}
+                  onClick={() => openPreview(invoice)}
                   className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-all duration-200"
                 >
                   <Eye className="h-4 w-4 mr-2" />
-                  Voir
+                  Apercu
                 </Button>
               </div>
             </div>
@@ -431,6 +442,11 @@ export default function SubmittedInvoicesList({ invoices, onUpdateInvoice }: Sub
           </div>
         )}
       </div>
-    </div>
+      <DocumentPreviewModal
+        previewDocument={previewDocument}
+        isOpen={Boolean(previewDocument)}
+        onClose={() => setPreviewDocument(null)}
+      />
+    </>
   );
 }

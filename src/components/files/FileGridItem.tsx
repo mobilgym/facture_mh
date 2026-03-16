@@ -29,6 +29,7 @@ interface FileGridItemProps {
   onSave: () => void;
   onCancel: () => void;
   onDeleteClick: (file: FileItem) => void;
+  onPreview: (file: FileItem) => void;
   onUpdateFile?: (fileId: string, updates: Partial<FileItem>) => Promise<void>;
   onUpdate: () => void;
   getBudgetInfo: (budgetId: string) => any;
@@ -49,6 +50,7 @@ export default function FileGridItem({
   onSave,
   onCancel,
   onDeleteClick,
+  onPreview,
   onUpdateFile,
   onUpdate,
   getBudgetInfo,
@@ -206,7 +208,7 @@ export default function FileGridItem({
               title={file.name}
               onClick={(e) => {
                 e.stopPropagation();
-                window.open(file.url, '_blank');
+                onPreview(file);
               }}
             >
               {file.name}
@@ -337,6 +339,7 @@ export default function FileGridItem({
           <FileActions
             file={file}
             onDelete={() => onDeleteClick(file)}
+            onPreview={onPreview}
             skipAvailabilityCheck
           />
         </div>

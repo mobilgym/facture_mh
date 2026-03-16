@@ -7,6 +7,7 @@ import { FileEditModal } from './FileEditModal';
 import FloatingActionBar from './FloatingActionBar';
 import DeleteFileDialog from './DeleteFileDialog';
 import QuickAssignmentPopup from './QuickAssignmentPopup';
+import DocumentPreviewModal, { type PreviewDocument } from './DocumentPreviewModal';
 import Button from '@/components/ui/Button';
 import type { FileItem } from '@/types/file';
 import { useBudgets } from '@/hooks/useBudgets';
@@ -49,6 +50,7 @@ export default function FileGrid({
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<EditingState | null>(null);
   const [editingFile, setEditingFile] = useState<FileItem | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<PreviewDocument | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -209,6 +211,14 @@ export default function FileGrid({
     setShowDeleteModal(true);
   };
 
+  const handlePreview = (file: FileItem) => {
+    setPreviewDocument({
+      name: file.name,
+      url: file.url,
+      type: file.type
+    });
+  };
+
   const handleDeleteConfirm = async () => {
     if (!selectedFile || !onDelete) return;
 
@@ -280,6 +290,7 @@ export default function FileGrid({
                 onSave={handleSave}
                 onCancel={handleCancel}
                 onDeleteClick={handleDeleteClick}
+                onPreview={handlePreview}
                 onUpdateFile={onUpdateFile}
                 onUpdate={onUpdate}
                 getBudgetInfo={getBudgetInfo}
@@ -321,6 +332,12 @@ export default function FileGrid({
         onClose={handleDeleteCancel}
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleting}
+      />
+
+      <DocumentPreviewModal
+        previewDocument={previewDocument}
+        isOpen={Boolean(previewDocument)}
+        onClose={() => setPreviewDocument(null)}
       />
 
       {/* Popup de raccourci pour assignation rapide */}

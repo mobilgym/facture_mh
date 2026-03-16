@@ -6,10 +6,11 @@ import type { FileItem } from '@/types/file';
 interface FileActionsProps {
   file: FileItem;
   onDelete: () => void;
+  onPreview: (file: FileItem) => void;
   skipAvailabilityCheck?: boolean;
 }
 
-export default function FileActions({ file, onDelete, skipAvailabilityCheck = false }: FileActionsProps) {
+export default function FileActions({ file, onDelete, onPreview, skipAvailabilityCheck = false }: FileActionsProps) {
   const [isAvailable, setIsAvailable] = useState(true);
   const [checking, setChecking] = useState(!skipAvailabilityCheck);
 
@@ -40,10 +41,10 @@ export default function FileActions({ file, onDelete, skipAvailabilityCheck = fa
       <button
         onClick={(e) => {
           e.stopPropagation();
-          window.open(file.url, '_blank');
+          onPreview(file);
         }}
         className="p-1.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 transition-all duration-200 hover:scale-105"
-        title="Visualiser"
+        title="Apercu rapide"
       >
         <Eye className="h-3.5 w-3.5" />
       </button>

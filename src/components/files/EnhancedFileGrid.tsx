@@ -3,6 +3,7 @@ import FileTabsWithTotals from './FileTabsWithTotals';
 import AdvancedSearch, { SearchFilters } from './AdvancedSearch';
 import BulkActionModal from './BulkActionModal';
 import FileBreadcrumb from './FileBreadcrumb';
+import PrintSelectionModal from './PrintSelectionModal';
 import type { FileItem } from '@/types/file';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,6 +50,8 @@ export default function EnhancedFileGrid({
     isOpen: false,
     action: ''
   });
+  const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [printInitialSelection, setPrintInitialSelection] = useState<string[]>([]);
 
   const { success: showSuccess, error: showError } = useToast();
   const { user } = useAuth();
@@ -307,6 +310,12 @@ export default function EnhancedFileGrid({
   }, []);
 
   const handleBulkAction = useCallback((action: string, fileIds: string[]) => {
+    if (action === 'print') {
+      setPrintInitialSelection(fileIds);
+      setPrintModalOpen(true);
+      return;
+    }
+
     setBulkActionModal({
       isOpen: true,
       action
@@ -374,6 +383,110 @@ export default function EnhancedFileGrid({
     setBulkActionModal({ isOpen: false, action: '' });
   };
 
+  const printCandidates = useMemo(() => {
+    if (!normalizedSelectedYear) return filteredFiles;
+    return periodFiles;
+  }, [filteredFiles, normalizedSelectedYear, periodFiles]);
+
+  const printScopeLabel = useMemo(() => {
+    if (!normalizedSelectedYear) return 'les factures affichées';
+    if (!normalizedSelectedMonth) return `toutes les factures de l'année ${normalizedSelectedYear}`;
+
+    const monthLabel = new Date(parseInt(normalizedSelectedYear), parseInt(normalizedSelectedMonth) - 1).toLocaleDateString('fr-FR', {
+      month: 'long',
+      year: 'numeric'
+    });
+
+    return `toutes les factures de ${monthLabel}`;
+  }, [normalizedSelectedMonth, normalizedSelectedYear]);
+
+  const handleOpenPrintModal = useCallback(() => {
+    setPrintInitialSelection([]);
+    setPrintModalOpen(true);
+  }, []);
+
+  const handlePrintSelection = useCallback(async (selectedPrintFiles: FileItem[]) => {
+    const printWindow = window.open('', '_blank', 'width=1024,height=768');
+
+    if (!printWindow) {
+      showError('Impossible d’ouvrir la fenêtre d’impression');
+      return;
+    }
+
+    const printMarkup = selectedPrintFiles
+      .map((file) => {
+        const safeName = file.name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const safeUrl = file.url.replace(/"/g, '&quot;');
+        const isImage = file.type?.startsWith('image/');
+        const isPdf = file.type === 'application/pdf' || file.url.toLowerCase().includes('.pdf');
+
+        if (isImage) {
+          return `
+            <section class="print-item">
+              <header>${safeName}</header>
+              <img src="${safeUrl}" alt="${safeName}" />
+            </section>
+          `;
+        }
+
+        if (isPdf) {
+          return `
+            <section class="print-item">
+              <header>${safeName}</header>
+              <iframe src="${safeUrl}"></iframe>
+            </section>
+          `;
+        }
+
+        return `
+          <section class="print-item print-fallback">
+            <header>${safeName}</header>
+            <p>Ce document ne peut pas être prévisualisé automatiquement pour l'impression.</p>
+            <p><a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Ouvrir le fichier</a></p>
+          </section>
+        `;
+      })
+      .join('');
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html lang="fr">
+        <head>
+          <meta charset="utf-8" />
+          <title>Impression factures</title>
+          <style>
+            body { margin: 0; font-family: Arial, sans-serif; background: #f3f4f6; }
+            .print-item { page-break-after: always; break-after: page; min-height: 100vh; padding: 16px; box-sizing: border-box; background: white; }
+            .print-item:last-child { page-break-after: auto; break-after: auto; }
+            header { margin-bottom: 12px; font-size: 14px; font-weight: 700; color: #111827; }
+            iframe { width: 100%; height: calc(100vh - 80px); border: 0; }
+            img { display: block; max-width: 100%; max-height: calc(100vh - 80px); margin: 0 auto; object-fit: contain; }
+            .print-fallback { display: flex; flex-direction: column; justify-content: center; }
+            a { color: #2563eb; }
+            @media print {
+              body { background: white; }
+              .print-item { padding: 0; }
+              header { margin: 0 0 8px 0; }
+            }
+          </style>
+        </head>
+        <body>
+          ${printMarkup}
+          <script>
+            window.onload = () => {
+              setTimeout(() => {
+                window.focus();
+                window.print();
+              }, 700);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    showSuccess(`${selectedPrintFiles.length} facture(s) envoyée(s) vers la boîte d’impression`);
+  }, [showError, showSuccess]);
+
   // Vérifier si des filtres sont actifs (recherche ou navigation)
   const hasNavigationFilter = normalizedSelectedYear;
 
@@ -384,6 +497,8 @@ export default function EnhancedFileGrid({
           year={normalizedSelectedYear}
           month={normalizedSelectedMonth}
           onNavigate={(year, month) => onPeriodNavigate({ year, month })}
+          onPrint={handleOpenPrintModal}
+          printDisabled={printCandidates.length === 0}
         />
       )}
 
@@ -444,6 +559,15 @@ export default function EnhancedFileGrid({
         selectedFileIds={selectedFiles}
         action={bulkActionModal.action as any}
         onConfirm={handleBulkActionConfirm}
+      />
+
+      <PrintSelectionModal
+        files={printCandidates}
+        isOpen={printModalOpen}
+        title={`Imprimer ${printScopeLabel}`}
+        initialSelectedIds={printInitialSelection}
+        onClose={() => setPrintModalOpen(false)}
+        onConfirm={handlePrintSelection}
       />
     </div>
   );

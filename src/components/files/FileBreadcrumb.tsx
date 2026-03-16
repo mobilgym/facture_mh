@@ -1,16 +1,19 @@
 import React from 'react';
-import { ChevronRight, Home } from 'lucide-react';
+import { ChevronRight, Home, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import BackButton from '@/components/ui/BackButton';
+import Button from '@/components/ui/Button';
 
 interface FileBreadcrumbProps {
   year: string | null;
   month: string | null;
   onNavigate: (year: string | null, month: string | null) => void;
+  onPrint?: () => void;
+  printDisabled?: boolean;
 }
 
-export default function FileBreadcrumb({ year, month, onNavigate }: FileBreadcrumbProps) {
+export default function FileBreadcrumb({ year, month, onNavigate, onPrint, printDisabled = false }: FileBreadcrumbProps) {
   return (
     <div className="flex items-center justify-between mb-4">
       <nav className="flex items-center space-x-2 text-sm text-gray-500">
@@ -43,12 +46,20 @@ export default function FileBreadcrumb({ year, month, onNavigate }: FileBreadcru
         )}
       </nav>
 
-      {(year || month) && (
-        <BackButton
-          onClick={() => onNavigate(month ? year : null, null)}
-          className="ml-4"
-        />
-      )}
+      <div className="ml-4 flex items-center gap-2">
+        {year && onPrint && (
+          <Button variant="outline" size="sm" onClick={onPrint} disabled={printDisabled}>
+            <Printer className="mr-2 h-4 w-4" />
+            Imprimer
+          </Button>
+        )}
+
+        {(year || month) && (
+          <BackButton
+            onClick={() => onNavigate(month ? year : null, null)}
+          />
+        )}
+      </div>
     </div>
   );
 }
