@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Calendar, 
+import {
+  Calendar,
   TrendingUp,
   ChevronLeft,
   ChevronRight,
@@ -10,7 +10,9 @@ import {
   Receipt,
   Eye,
   Plus,
-  Menu
+  Menu,
+  BarChart3,
+  FileX2
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import EnhancedFileGrid from '@/components/files/EnhancedFileGrid';
@@ -18,12 +20,15 @@ import SubmittedInvoicesList from '@/components/invoices/SubmittedInvoicesList';
 import FileUploader from '@/components/files/FileUploader';
 import CompactUploader from '@/components/files/CompactUploader';
 import YearlyNavigation from './YearlyNavigation';
+import RapprochementDialog from '@/components/rapprochement/RapprochementDialog';
 import { useFiles } from '@/hooks/useFiles';
 import { useSubmittedInvoices } from '@/hooks/useSubmittedInvoices';
 import { deleteFile } from '@/lib/services/fileService';
 import { updateFileMetadata, updateFileWithBadges } from '@/lib/services/fileUpdateService';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
+import { useRapprochementStatus } from '@/hooks/useRapprochementStatus';
 import type { FileItem } from '@/types/file';
 
 type ContentType = 'files' | 'overview';
@@ -71,9 +76,12 @@ export default function ModernDashboard() {
     month: null
   });
   const [accordionExpanded, setAccordionExpanded] = useState(false);
+  const [rapprochementOpen, setRapprochementOpen] = useState(false);
   
   const toast = useToast();
   const { user } = useAuth();
+  const { selectedCompany } = useCompany();
+  const rapprochementStatus = useRapprochementStatus(selectedCompany?.id);
   
   // Fonction pour gérer la sélection de période avec basculement automatique vers factures
   const handlePeriodSelect = (period: { year: string | null; month: string | null }) => {
@@ -328,10 +336,11 @@ export default function ModernDashboard() {
           {/* Periods Navigation */}
           <div className="flex-1 overflow-y-auto p-2">
             {!sidebarCollapsed ? (
-              <YearlyNavigation 
-                periodsData={periodsData} 
+              <YearlyNavigation
+                periodsData={periodsData}
                 selectedPeriod={selectedPeriod}
                 onPeriodSelect={handlePeriodSelect}
+                rapprochementStatus={rapprochementStatus}
               />
             ) : (
               <div className="space-y-2">
@@ -404,6 +413,17 @@ export default function ModernDashboard() {
                   </div>
                 </div>
               </div>
+
+              {/* Rapprochement Button - visible when a month is selected */}
+              {selectedPeriod.year && selectedPeriod.month && (
+                <button
+                  onClick={() => setRapprochementOpen(true)}
+                  className="px-3 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg text-sm font-medium hover:from-blue-700 hover:to-cyan-700 transition-all flex items-center gap-2 shadow-sm"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Rapprochement</span>
+                </button>
+              )}
             </div>
           </header>
 
@@ -509,6 +529,27 @@ export default function ModernDashboard() {
                                   }`}>
                                     {month.monthName}
                                   </span>
+                                  {(() => {
+                                    const rs = rapprochementStatus.get(`${month.year}-${month.month}`);
+                                    if (rs) {
+                                      const isComplete = rs.matchedCount >= rs.totalTransactions && rs.totalTransactions > 0;
+                                      return (
+                                        <span className={`text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full ${
+                                          isComplete
+                                            ? 'bg-green-100 text-green-700'
+                                            : 'bg-amber-100 text-amber-700'
+                                        }`} title={`${rs.matchedCount} correspondances validées sur ${rs.totalTransactions} transactions`}>
+                                          {rs.matchedCount}/{rs.totalTransactions}
+                                        </span>
+                                      );
+                                    }
+                                    if (month.filesCount > 0) {
+                                      return (
+                                        <FileX2 className="h-3 w-3 text-red-400 opacity-60" title="Pas de rapprochement" />
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                 </div>
                                 <div className="flex items-center space-x-3 md:space-x-6 text-xs md:text-sm text-gray-500">
                                   <span className="flex items-center">
@@ -530,7 +571,20 @@ export default function ModernDashboard() {
                                     </span>
                                   )}
                                   {month.filesCount > 0 && (
-                                    <Eye className="h-3 w-3 md:h-4 md:w-4 text-gray-400" />
+                                    <>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handlePeriodSelect({ year: month.year, month: month.month });
+                                          setRapprochementOpen(true);
+                                        }}
+                                        className="p-1 rounded hover:bg-blue-100 transition-colors"
+                                        title="Rapprochement bancaire"
+                                      >
+                                        <BarChart3 className="h-3 w-3 md:h-4 md:w-4 text-blue-500" />
+                                      </button>
+                                      <Eye className="h-3 w-3 md:h-4 md:w-4 text-gray-400" />
+                                    </>
                                   )}
                                 </div>
                               </motion.div>
@@ -587,6 +641,20 @@ export default function ModernDashboard() {
           </main>
         </div>
       </div>
+      {/* Rapprochement Dialog */}
+      {selectedPeriod.year && selectedPeriod.month && (
+        <RapprochementDialog
+          isOpen={rapprochementOpen}
+          onClose={() => setRapprochementOpen(false)}
+          year={selectedPeriod.year}
+          month={selectedPeriod.month}
+          monthName={
+            periodsData.find(p => p.year === selectedPeriod.year && p.month === selectedPeriod.month)?.monthName ||
+            new Date(parseInt(selectedPeriod.year), parseInt(selectedPeriod.month) - 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+          }
+          onInvoiceAdded={refetchFiles}
+        />
+      )}
     </div>
   );
 }

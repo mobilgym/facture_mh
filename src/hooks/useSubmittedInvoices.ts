@@ -34,11 +34,15 @@ export function useSubmittedInvoices({ year, month }: UseSubmittedInvoicesOption
       const { data, error: err } = await query;
       
       if (err) {
-        console.error('Supabase error:', err);
+        // Table may not exist — return empty silently
+        if (err.code === 'PGRST205') {
+          setInvoices([]);
+          setError(null);
+          return;
+        }
         throw err;
       }
-      
-      console.log('Fetched invoices:', data);
+
       setInvoices(data || []);
       setError(null);
     } catch (err) {

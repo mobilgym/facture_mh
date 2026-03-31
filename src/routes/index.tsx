@@ -8,8 +8,6 @@ import Companies from '@/pages/Companies';
 import Documents from '@/pages/Documents';
 import FolderView from '@/pages/FolderView';
 import { BudgetsAndExpenses } from '@/pages/BudgetsAndExpenses';
-import Lettrage from '@/pages/Lettrage';
-
 
 
 export default function AppRoutes() {
@@ -43,12 +41,6 @@ export default function AppRoutes() {
           <BudgetsAndExpenses />
         </AuthGuard>
       } />
-      <Route path="/lettrage" element={
-        <AuthGuard>
-          <Lettrage />
-        </AuthGuard>
-      } />
-
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, Calendar, Receipt, TrendingUp, CheckSquare, Square } from 'lucide-react';
+import { ChevronDown, ChevronRight, Calendar, Receipt, TrendingUp, CheckSquare, Square, FileX2 } from 'lucide-react';
+import type { RapprochementStatus } from '@/hooks/useRapprochementStatus';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -16,6 +17,7 @@ interface YearlyNavigationProps {
   periodsData: PeriodData[];
   selectedPeriod: { year: string | null; month: string | null };
   onPeriodSelect: (period: { year: string | null; month: string | null }) => void;
+  rapprochementStatus?: Map<string, RapprochementStatus>;
 }
 
 interface YearGroup {
@@ -26,7 +28,7 @@ interface YearGroup {
   totalAmount: number;
 }
 
-export default function YearlyNavigation({ periodsData, selectedPeriod, onPeriodSelect }: YearlyNavigationProps) {
+export default function YearlyNavigation({ periodsData, selectedPeriod, onPeriodSelect, rapprochementStatus }: YearlyNavigationProps) {
   const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
 
   // Grouper les données par année
@@ -214,26 +216,52 @@ export default function YearlyNavigation({ periodsData, selectedPeriod, onPeriod
                                   const year = parseInt(period.year);
                                   const month = parseInt(period.month) - 1;
                                   if (isNaN(year) || isNaN(month) || month < 0 || month > 11) {
-                                    console.error('Invalid date values:', { year: period.year, month: period.month });
                                     return 'Date invalide';
                                   }
                                   return format(new Date(year, month), 'MMMM', { locale: fr });
                                 } catch (error) {
-                                  console.error('Error formatting date:', error);
                                   return 'Date invalide';
                                 }
                               })()}
                             </span>
                           </div>
-                          {isPeriodSelected && (
-                            <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {(() => {
+                              const rs = rapprochementStatus?.get(`${period.year}-${period.month}`);
+                              if (rs && rs.totalTransactions > 0) {
+                                const isComplete = rs.matchedCount >= rs.totalTransactions;
+                                return (
+                                  <span
+                                    className={`text-[9px] font-bold tabular-nums px-1 py-px rounded ${
+                                      isComplete
+                                        ? 'bg-green-100 text-green-600'
+                                        : 'bg-amber-100 text-amber-600'
+                                    }`}
+                                    title={`${rs.matchedCount} correspondances / ${rs.totalTransactions} transactions`}
+                                  >
+                                    {rs.matchedCount}/{rs.totalTransactions}
+                                  </span>
+                                );
+                              }
+                              if (period.files.length > 0) {
+                                return (
+                                  <FileX2
+                                    className="h-3 w-3 text-red-300"
+                                    title="Pas de rapprochement"
+                                  />
+                                );
+                              }
+                              return null;
+                            })()}
+                            {isPeriodSelected && (
+                              <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+                            )}
+                          </div>
                         </div>
 
                         {/* Statistiques du mois */}
                         <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
                           <div className="flex items-center">
-                            <Receipt className="h-3 w-3 mr-1" />
                             <span>{period.files.length} facture{period.files.length > 1 ? 's' : ''}</span>
                           </div>
                           {periodAmount > 0 && (
