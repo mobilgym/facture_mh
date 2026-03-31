@@ -15,9 +15,11 @@ export function useLongPress({
 }: UseLongPressOptions) {
   const timeoutRef = useRef<NodeJS.Timeout>();
   const isLongPressRef = useRef(false);
+  const isActiveRef = useRef(false);
   const startPositionRef = useRef<{ x: number; y: number } | null>(null);
 
   const start = useCallback((event: TouchEvent | MouseEvent) => {
+    isActiveRef.current = true;
     if (shouldPreventDefault && event.target) {
       (event.target as Element).addEventListener('contextmenu', (e) => e.preventDefault());
     }
@@ -37,9 +39,9 @@ export function useLongPress({
 
   const clear = useCallback((event?: TouchEvent | MouseEvent, shouldTriggerOnShortPress = true) => {
     timeoutRef.current && clearTimeout(timeoutRef.current);
-    
-    // Si c'est un court press et qu'on a un callback pour ça
-    if (shouldTriggerOnShortPress && !isLongPressRef.current && onShortPress && event) {
+
+    // Ne déclencher onShortPress que si un mouseDown/touchStart a eu lieu sur cet élément
+    if (shouldTriggerOnShortPress && isActiveRef.current && !isLongPressRef.current && onShortPress && event) {
       // Vérifier que l'utilisateur n'a pas bougé trop loin (pour éviter les faux positifs lors du scroll)
       const clientX = 'changedTouches' in event ? event.changedTouches[0].clientX : event.clientX;
       const clientY = 'changedTouches' in event ? event.changedTouches[0].clientY : event.clientY;
@@ -56,6 +58,7 @@ export function useLongPress({
         }
       }
     }
+    isActiveRef.current = false;
   }, [onShortPress]);
 
   const handlers = {

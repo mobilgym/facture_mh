@@ -22,7 +22,8 @@ import {
   RotateCcw,
   CheckSquare,
   Square,
-  History
+  History,
+  Pin
 } from 'lucide-react';
 import { useRapprochement } from '../../hooks/useRapprochement';
 import { useCompany } from '../../contexts/CompanyContext';
@@ -39,6 +40,8 @@ interface RapprochementDialogProps {
   month: string;
   monthName: string;
   onInvoiceAdded?: () => void;
+  pinnedTransactions: BankTransaction[];
+  onPinnedTransactionsChange: (txs: BankTransaction[]) => void;
 }
 
 export default function RapprochementDialog({
@@ -47,7 +50,9 @@ export default function RapprochementDialog({
   year,
   month,
   monthName,
-  onInvoiceAdded
+  onInvoiceAdded,
+  pinnedTransactions,
+  onPinnedTransactionsChange
 }: RapprochementDialogProps) {
   const { selectedCompany } = useCompany();
   const { user } = useAuth();
@@ -415,6 +420,22 @@ export default function RapprochementDialog({
                               </button>
                             </>
                           )}
+                          {selectedTxIds.size > 0 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const toPin = unmatchedTransactions.filter(t => selectedTxIds.has(t.id));
+                                const existingIds = new Set(pinnedTransactions.map(p => p.id));
+                                const newOnes = toPin.filter(t => !existingIds.has(t.id));
+                                onPinnedTransactionsChange([...pinnedTransactions, ...newOnes]);
+                                setSelectedTxIds(new Set());
+                              }}
+                              className="px-2.5 py-1 bg-amber-500 text-white rounded-md text-xs font-medium hover:bg-amber-600 transition-colors flex items-center gap-1"
+                            >
+                              <Pin className="h-3 w-3" />
+                              \u00c9pingler ({selectedTxIds.size})
+                            </button>
+                          )}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -539,6 +560,22 @@ export default function RapprochementDialog({
                                     ? <Loader2 className="h-3.5 w-3.5 text-amber-600 animate-spin" />
                                     : <Plus className="h-3.5 w-3.5 text-amber-600" />
                                   }
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!pinnedTransactions.some(p => p.id === tx.id)) {
+                                      onPinnedTransactionsChange([...pinnedTransactions, tx]);
+                                    }
+                                  }}
+                                  className={`p-1.5 rounded-md transition-colors ${
+                                    pinnedTransactions.some(p => p.id === tx.id)
+                                      ? 'bg-amber-200 text-amber-700'
+                                      : 'hover:bg-amber-100 text-amber-500'
+                                  }`}
+                                  title="\u00c9pingler dans le post-it"
+                                >
+                                  <Pin className="h-3.5 w-3.5" />
                                 </button>
                               </>
                             )}

@@ -100,14 +100,20 @@ export default function FileList({ folderId, filter }: FileListProps) {
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => window.open(file.url, '_blank')}
-                    title="Visualiser"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
+                  {file.url ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(file.url, '_blank')}
+                      title="Visualiser"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <Button variant="ghost" size="sm" disabled title="Pas de fichier PDF">
+                      <Eye className="h-4 w-4 text-gray-300" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

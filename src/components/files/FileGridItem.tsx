@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { formatDate } from '@/lib/utils/date';
 import { formatAmount } from '@/lib/utils/currency';
-import { FileText, Calendar, EuroIcon, Edit3, Save, X, Wallet, Tag, Check } from 'lucide-react';
+import { FileText, Calendar, EuroIcon, Edit3, Save, X, Wallet, Tag, Check, Eye } from 'lucide-react';
 import FileActions from './FileActions';
 import Button from '@/components/ui/Button';
 import Tooltip from '@/components/ui/Tooltip';
@@ -91,6 +91,24 @@ export default function FileGridItem({
         >
           {isSelected && <Check className="h-3 w-3 text-white" />}
         </div>
+      )}
+
+      {/* Bouton preview en haut à droite */}
+      {file.url && (
+        <button
+          className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-white/90 backdrop-blur-sm border border-gray-200/60 hover:bg-blue-50 hover:border-blue-300 transition-all shadow-sm"
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPreview(file);
+          }}
+          title="Voir la facture"
+        >
+          <Eye className="h-3.5 w-3.5 text-blue-600" />
+        </button>
       )}
 
       {/* Indicateurs de budget, badges et lettrage en bas à droite */}
@@ -203,13 +221,9 @@ export default function FileGridItem({
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <h3 
-              className="font-medium text-gray-900 text-[13px] leading-snug line-clamp-1 hover:text-blue-600 transition-colors cursor-pointer"
+            <h3
+              className="font-medium text-gray-900 text-[13px] leading-snug line-clamp-1"
               title={file.name}
-              onClick={(e) => {
-                e.stopPropagation();
-                onPreview(file);
-              }}
             >
               {file.name}
             </h3>

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Plus, Edit } from 'lucide-react';
+import { Upload, Plus, Edit, CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import FileImportDialog from './FileImportDialog';
 import ManualInvoiceDialog from './ManualInvoiceDialog';
@@ -22,6 +22,7 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
   const [error, setError] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [bgUploads, setBgUploads] = useState<{ id: number; name: string; status: 'uploading' | 'success' | 'error'; message?: string }[]>([]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -58,25 +59,23 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
     onDropRejected: () => setIsDragActive(false)
   });
 
-  const handleImportConfirm = async (processedFile: File, fileName: string, date: Date, amount: number | null, budgetId?: string | null, badgeIds?: string[], multiAssignments?: any[]) => {
-    console.log('🔄 handleImportConfirm appelé avec:', { fileName, date, amount, budgetId, badgeIds });
-    
-    if (!fileToImport) {
-      console.error('❌ Aucun fichier à importer');
-      return;
-    }
-    
-    try {
-      console.log('📤 Début upload du fichier...');
-      await upload(processedFile, fileName, date, amount, budgetId, badgeIds, multiAssignments);
-      console.log('✅ Upload réussi !');
-      setFileToImport(null);
-      setSelectedType(null);
-      onSuccess();
-    } catch (err: any) {
-      console.error('❌ Erreur upload:', err);
-      setError(err?.message || 'Erreur lors de l\'upload');
-    }
+  const handleImportConfirm = (processedFile: File, fileName: string, date: Date, amount: number | null, budgetId?: string | null, badgeIds?: string[], multiAssignments?: any[]) => {
+    setFileToImport(null);
+    setSelectedType(null);
+
+    const uploadId = Date.now();
+    setBgUploads(prev => [...prev, { id: uploadId, name: fileName, status: 'uploading' }]);
+
+    upload(processedFile, fileName, date, amount, budgetId, badgeIds, multiAssignments)
+      .then(() => {
+        setBgUploads(prev => prev.map(u => u.id === uploadId ? { ...u, status: 'success' } : u));
+        onSuccess();
+        setTimeout(() => setBgUploads(prev => prev.filter(u => u.id !== uploadId)), 3000);
+      })
+      .catch((err: any) => {
+        setBgUploads(prev => prev.map(u => u.id === uploadId ? { ...u, status: 'error', message: err?.message } : u));
+        setTimeout(() => setBgUploads(prev => prev.filter(u => u.id !== uploadId)), 5000);
+      });
   };
 
   const handleFileDialogClose = () => {
@@ -194,28 +193,60 @@ export default function CompactUploader({ onSuccess }: CompactUploaderProps) {
       <ManualInvoiceDialog
         isOpen={showManualDialog}
         onClose={() => setShowManualDialog(false)}
-        onConfirm={async (data) => {
-          try {
-            // Créer un fichier virtuel pour la facture manuelle
-            const virtualFile = new File([''], data.fileName, { type: 'application/pdf' });
-            
-            await upload(
-              virtualFile,
-              data.fileName,
-              data.date,
-              data.amount,
-              data.budgetId,
-              data.badgeIds,
-              data.multiAssignments
-            );
-            
-            onSuccess();
-            setShowManualDialog(false);
-          } catch (err: any) {
-            setError(err.message || 'Erreur lors de la création de la facture manuelle');
-          }
+        onConfirm={(data) => {
+          setShowManualDialog(false);
+          const virtualFile = new File([''], data.fileName, { type: 'application/pdf' });
+          const uploadId = Date.now();
+          setBgUploads(prev => [...prev, { id: uploadId, name: data.fileName, status: 'uploading' }]);
+
+          upload(virtualFile, data.fileName, data.date, data.amount, data.budgetId, data.badgeIds, data.multiAssignments)
+            .then(() => {
+              setBgUploads(prev => prev.map(u => u.id === uploadId ? { ...u, status: 'success' } : u));
+              onSuccess();
+              setTimeout(() => setBgUploads(prev => prev.filter(u => u.id !== uploadId)), 3000);
+            })
+            .catch((err: any) => {
+              setBgUploads(prev => prev.map(u => u.id === uploadId ? { ...u, status: 'error', message: err?.message } : u));
+              setTimeout(() => setBgUploads(prev => prev.filter(u => u.id !== uploadId)), 5000);
+            });
         }}
       />
+
+      {/* Background upload toasts */}
+      {bgUploads.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-[90] space-y-2">
+          <AnimatePresence>
+            {bgUploads.map(u => (
+              <motion.div
+                key={u.id}
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-lg border backdrop-blur-sm max-w-xs ${
+                  u.status === 'uploading' ? 'bg-white/95 border-blue-200'
+                    : u.status === 'success' ? 'bg-green-50/95 border-green-200'
+                    : 'bg-red-50/95 border-red-200'
+                }`}
+              >
+                {u.status === 'uploading' && <Loader2 className="h-4 w-4 text-blue-500 animate-spin flex-shrink-0" />}
+                {u.status === 'success' && <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />}
+                {u.status === 'error' && <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />}
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-gray-900 truncate">{u.name}</p>
+                  <p className="text-[10px] text-gray-500">
+                    {u.status === 'uploading' && 'Import en cours...'}
+                    {u.status === 'success' && 'Import\u00e9 avec succ\u00e8s'}
+                    {u.status === 'error' && (u.message || 'Erreur')}
+                  </p>
+                </div>
+                <button onClick={() => setBgUploads(prev => prev.filter(x => x.id !== u.id))} className="p-0.5 hover:bg-gray-200/60 rounded flex-shrink-0">
+                  <X className="h-3 w-3 text-gray-400" />
+                </button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
     </>
   );
 }

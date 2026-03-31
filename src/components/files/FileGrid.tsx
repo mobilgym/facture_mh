@@ -212,6 +212,7 @@ export default function FileGrid({
   };
 
   const handlePreview = (file: FileItem) => {
+    if (!file.url) return;
     setPreviewDocument({
       name: file.name,
       url: file.url,

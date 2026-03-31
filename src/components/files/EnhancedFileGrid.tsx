@@ -354,7 +354,7 @@ export default function EnhancedFileGrid({
             return;
           case 'download':
             const downloadFile = files.find(f => f.id === fileId);
-            if (downloadFile) {
+            if (downloadFile?.url) {
               window.open(downloadFile.url, '_blank');
             }
             return;
@@ -416,9 +416,9 @@ export default function EnhancedFileGrid({
     const printMarkup = selectedPrintFiles
       .map((file) => {
         const safeName = file.name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const safeUrl = file.url.replace(/"/g, '&quot;');
+        const safeUrl = (file.url || '').replace(/"/g, '&quot;');
         const isImage = file.type?.startsWith('image/');
-        const isPdf = file.type === 'application/pdf' || file.url.toLowerCase().includes('.pdf');
+        const isPdf = file.type === 'application/pdf' || (file.url || '').toLowerCase().includes('.pdf');
 
         if (isImage) {
           return `

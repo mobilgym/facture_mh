@@ -98,71 +98,64 @@ export default function YearlyNavigation({ periodsData, selectedPeriod, onPeriod
       {(selectedPeriod.year || selectedPeriod.month) && (
         <motion.button
           onClick={() => onPeriodSelect({ year: null, month: null })}
-          className="w-full flex items-center p-3 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-all"
+          className="w-full flex items-center p-2.5 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-150 border border-gray-200/80 shadow-sm transition-all"
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
         >
           <div className="flex items-center flex-1">
-            <Calendar className="h-4 w-4 mr-2 text-gray-600" />
-            <span className="font-medium text-gray-900">Tout afficher</span>
+            <div className="w-7 h-7 rounded-lg bg-white shadow-sm flex items-center justify-center mr-2.5">
+              <Calendar className="h-3.5 w-3.5 text-gray-500" />
+            </div>
+            <span className="font-medium text-sm text-gray-700">Tout afficher</span>
           </div>
         </motion.button>
       )}
-      
+
       {yearGroups.map((yearGroup) => {
         const isExpanded = expandedYears.has(yearGroup.year);
-        // Une année est sélectionnée si l'année correspond ET qu'il n'y a pas de mois spécifique
         const isYearSelected = selectedPeriod.year === yearGroup.year && !selectedPeriod.month;
 
         return (
           <div key={yearGroup.year} className="space-y-1">
-            {/* En-tête de l'année */}
-            <div className={`flex items-center gap-2 p-3 rounded-lg transition-all ${
+            {/* En-tete de l'annee */}
+            <div className={`flex items-center gap-2 p-2.5 rounded-xl transition-all ${
               isYearSelected
-                ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200'
-                : 'border border-transparent'
+                ? 'bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200/80 shadow-sm shadow-cyan-100/50'
+                : 'hover:bg-gray-50/80 border border-transparent'
             }`}>
-              {/* Checkbox pour sélectionner toute l'année */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onPeriodSelect({ year: yearGroup.year, month: null });
                 }}
-                className="p-1 hover:bg-gray-100 rounded transition-colors"
-                title="Sélectionner toute l'année"
+                className="p-1 hover:bg-white/80 rounded-lg transition-colors"
+                title="S\u00e9lectionner toute l'ann\u00e9e"
               >
                 {isYearSelected ? (
-                  <CheckSquare className="h-5 w-5 text-blue-600" />
+                  <CheckSquare className="h-4 w-4 text-cyan-600" />
                 ) : (
-                  <Square className="h-5 w-5 text-gray-400" />
+                  <Square className="h-4 w-4 text-gray-300" />
                 )}
               </button>
 
-              {/* Reste du header cliquable pour expand/collapse */}
               <motion.button
                 onClick={() => toggleYear(yearGroup.year)}
-                className="flex-1 flex items-center hover:bg-gray-50 rounded px-2 py-1 transition-colors"
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-                title="Cliquez pour expand/collapse"
+                className="flex-1 flex items-center rounded-lg px-2 py-1 transition-colors"
+                whileTap={{ scale: 0.98 }}
               >
                 <div className="flex items-center flex-1">
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 mr-2 text-gray-600" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 mr-2 text-gray-600" />
-                  )}
-                  <span className="font-semibold text-gray-900">{yearGroup.year}</span>
+                  <motion.div animate={{ rotate: isExpanded ? 90 : 0 }} transition={{ duration: 0.2 }}>
+                    <ChevronRight className="h-3.5 w-3.5 mr-2 text-gray-400" />
+                  </motion.div>
+                  <span className="font-bold text-sm text-gray-800">{yearGroup.year}</span>
                 </div>
-              
-                <div className="flex items-center space-x-3 text-xs text-gray-500">
-                  <span className="flex items-center">
-                    <Receipt className="h-3 w-3 mr-1" />
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-md">
                     {yearGroup.totalFiles}
                   </span>
                   {yearGroup.totalAmount > 0 && (
-                    <span className="flex items-center font-medium text-green-600">
-                      <TrendingUp className="h-3 w-3 mr-1" />
+                    <span className="text-[10px] font-semibold bg-green-50 text-green-600 px-1.5 py-0.5 rounded-md">
                       {formatCurrency(yearGroup.totalAmount)}
                     </span>
                   )}
@@ -187,18 +180,28 @@ export default function YearlyNavigation({ periodsData, selectedPeriod, onPeriod
                     
                     const periodAmount = period.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
 
+                    const monthName = (() => {
+                      try {
+                        const y = parseInt(period.year);
+                        const m = parseInt(period.month) - 1;
+                        if (isNaN(y) || isNaN(m) || m < 0 || m > 11) return 'Date invalide';
+                        return format(new Date(y, m), 'MMMM', { locale: fr });
+                      } catch { return 'Date invalide'; }
+                    })();
+
+                    const rs = rapprochementStatus?.get(`${period.year}-${period.month}`);
+
                     return (
                       <motion.div
                         key={`${period.year}-${period.month}`}
-                        whileHover={{ scale: 1.01, x: 2 }}
-                        whileTap={{ scale: 0.99 }}
-                        className={`p-3 rounded-lg cursor-pointer transition-all ${
+                        whileHover={{ x: 3 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`p-2.5 rounded-xl cursor-pointer transition-all ${
                           isPeriodSelected
-                            ? 'bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 shadow-sm'
-                            : 'hover:bg-gray-50 border border-transparent'
+                            ? 'bg-gradient-to-r from-cyan-50 via-blue-50 to-indigo-50 border border-cyan-200/80 shadow-md shadow-cyan-100/40'
+                            : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100/80 border border-transparent'
                         }`}
                         onClick={() => {
-                          // Si on clique sur le mois déjà sélectionné, on déselectionne
                           if (selectedPeriod.year === period.year && selectedPeriod.month === period.month) {
                             onPeriodSelect({ year: period.year, month: null });
                           } else {
@@ -206,78 +209,64 @@ export default function YearlyNavigation({ periodsData, selectedPeriod, onPeriod
                           }
                         }}
                       >
-                        {/* En-tête du mois */}
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="h-4 w-4 text-gray-400" />
-                            <span className="font-medium text-sm text-gray-900">
-                              {(() => {
-                                try {
-                                  const year = parseInt(period.year);
-                                  const month = parseInt(period.month) - 1;
-                                  if (isNaN(year) || isNaN(month) || month < 0 || month > 11) {
-                                    return 'Date invalide';
-                                  }
-                                  return format(new Date(year, month), 'MMMM', { locale: fr });
-                                } catch (error) {
-                                  return 'Date invalide';
-                                }
-                              })()}
-                            </span>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+                              isPeriodSelected
+                                ? 'bg-gradient-to-br from-cyan-500 to-blue-600 shadow-sm shadow-cyan-200'
+                                : 'bg-gray-100'
+                            }`}>
+                              <Calendar className={`h-3.5 w-3.5 ${isPeriodSelected ? 'text-white' : 'text-gray-400'}`} />
+                            </div>
+                            <div>
+                              <span className={`font-medium text-sm capitalize ${isPeriodSelected ? 'text-gray-900' : 'text-gray-700'}`}>
+                                {monthName}
+                              </span>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] text-gray-400">
+                                  {period.files.length} facture{period.files.length > 1 ? 's' : ''}
+                                </span>
+                                {periodAmount > 0 && (
+                                  <span className="text-[10px] font-semibold text-green-600">
+                                    {formatCurrency(periodAmount)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            {(() => {
-                              const rs = rapprochementStatus?.get(`${period.year}-${period.month}`);
-                              if (rs && rs.totalTransactions > 0) {
-                                const isComplete = rs.matchedCount >= rs.totalTransactions;
-                                return (
-                                  <span
-                                    className={`text-[9px] font-bold tabular-nums px-1 py-px rounded ${
-                                      isComplete
-                                        ? 'bg-green-100 text-green-600'
-                                        : 'bg-amber-100 text-amber-600'
-                                    }`}
-                                    title={`${rs.matchedCount} correspondances / ${rs.totalTransactions} transactions`}
-                                  >
-                                    {rs.matchedCount}/{rs.totalTransactions}
-                                  </span>
-                                );
-                              }
-                              if (period.files.length > 0) {
-                                return (
-                                  <FileX2
-                                    className="h-3 w-3 text-red-300"
-                                    title="Pas de rapprochement"
-                                  />
-                                );
-                              }
-                              return null;
-                            })()}
+                            {rs && rs.totalTransactions > 0 ? (
+                              <span
+                                className={`text-[9px] font-bold tabular-nums px-1.5 py-0.5 rounded-md ${
+                                  rs.matchedCount >= rs.totalTransactions
+                                    ? 'bg-green-100 text-green-600'
+                                    : 'bg-amber-100 text-amber-600'
+                                }`}
+                                title={`${rs.matchedCount} / ${rs.totalTransactions} transactions`}
+                              >
+                                {rs.matchedCount}/{rs.totalTransactions}
+                              </span>
+                            ) : period.files.length > 0 ? (
+                              <FileX2 className="h-3 w-3 text-red-300" title="Pas de rapprochement" />
+                            ) : null}
                             {isPeriodSelected && (
-                              <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+                              <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full shadow-sm shadow-cyan-300" />
                             )}
                           </div>
                         </div>
 
-                        {/* Statistiques du mois */}
-                        <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
-                          <div className="flex items-center">
-                            <span>{period.files.length} facture{period.files.length > 1 ? 's' : ''}</span>
-                          </div>
-                          {periodAmount > 0 && (
-                            <div className="flex items-center justify-end font-medium text-green-600">
-                              {formatCurrency(periodAmount)}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Barre de progression relative */}
                         {periodAmount > 0 && yearGroup.totalAmount > 0 && (
-                          <div className="mt-2">
-                            <div className="w-full bg-gray-200 rounded-full h-1">
-                              <div 
-                                className="bg-gradient-to-r from-cyan-400 to-blue-500 h-1 rounded-full transition-all duration-300"
-                                style={{ width: `${(periodAmount / yearGroup.totalAmount) * 100}%` }}
+                          <div className="mt-2 ml-9">
+                            <div className="w-full bg-gray-100 rounded-full h-1 overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${(periodAmount / yearGroup.totalAmount) * 100}%` }}
+                                transition={{ duration: 0.5, ease: 'easeOut' }}
+                                className={`h-1 rounded-full ${
+                                  isPeriodSelected
+                                    ? 'bg-gradient-to-r from-cyan-400 to-blue-500'
+                                    : 'bg-gradient-to-r from-gray-300 to-gray-400'
+                                }`}
                               />
                             </div>
                           </div>

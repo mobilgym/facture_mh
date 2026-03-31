@@ -406,14 +406,18 @@ export function FileEditModal({ file, isOpen, onClose, onFileUpdated, onFileDele
               <p className="text-sm text-gray-600">
                 {formatFileSize(file.size)} • Créé le {new Date(file.createdAt).toLocaleDateString('fr-FR')}
               </p>
-              <a
-                href={file.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
-                Voir le fichier →
-              </a>
+              {file.url ? (
+                <a
+                  href={file.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Voir le fichier &rarr;
+                </a>
+              ) : (
+                <span className="text-sm text-gray-400 italic">Pas de fichier attach&eacute;</span>
+              )}
             </div>
           </div>
         </div>

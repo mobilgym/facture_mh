@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, X, FileText, AlertCircle, Edit } from 'lucide-react';
+import { Upload, X, FileText, AlertCircle, Edit, CheckCircle, Loader2 } from 'lucide-react';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import Button from '@/components/ui/Button';
 import FileImportDialog from './FileImportDialog';
@@ -22,6 +22,7 @@ export default function FileUploader({ folderId, onSuccess }: FileUploaderProps)
   const [showManualDialog, setShowManualDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [bgUploads, setBgUploads] = useState<{ id: number; name: string; status: 'uploading' | 'success' | 'error'; message?: string }[]>([]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -59,93 +60,99 @@ export default function FileUploader({ folderId, onSuccess }: FileUploaderProps)
   });
 
   return (
-    <div className="mb-8">
+    <div className="mb-4">
       <motion.div
         {...getRootProps()}
-        className={`relative border-2 border-dashed rounded-lg transition-colors ${
-          isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+        className={`relative rounded-2xl transition-all overflow-hidden ${
+          isDragActive
+            ? 'shadow-[0_0_30px_rgba(6,182,212,0.3)]'
+            : 'shadow-sm hover:shadow-md'
         }`}
         animate={{
           scale: isDragActive ? 1.02 : 1,
-          borderColor: isDragActive ? '#3B82F6' : '#D1D5DB'
         }}
       >
-        <input {...getInputProps()} />
-        
-        <div className="p-6 md:p-12 text-center">
-          <motion.div
-            animate={{ 
-              scale: isDragActive ? 1.1 : 1,
-              y: isDragActive ? -5 : 0
-            }}
-            transition={{ type: "spring", stiffness: 300 }}
-            className="md:mb-4"
-          >
-            <Upload
-              className={`mx-auto h-8 w-8 md:h-12 md:w-12 ${
-                isDragActive ? 'text-blue-500' : 'text-gray-400'
-              }`}
-            />
-          </motion.div>
+        {/* Gradient border effect */}
+        <div className={`absolute inset-0 rounded-2xl transition-opacity ${
+          isDragActive ? 'opacity-100' : 'opacity-0'
+        } bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 p-[2px]`}>
+          <div className="w-full h-full bg-white rounded-2xl" />
+        </div>
 
-          <AnimatePresence>
-            {uploading || converting ? (
-              <UploadProgress progress={progress} isConverting={converting} />
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-              >
-                <div className="flex flex-col space-y-3">
-                  <Button type="button" size="sm" className="mt-2 md:mt-4">
-                    {isDragActive ? 'Déposez ici' : 'Importer'}
-                  </Button>
-                  
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-1 border-t border-gray-300"></div>
-                    <span className="text-xs text-gray-500 bg-white px-2">ou</span>
-                    <div className="flex-1 border-t border-gray-300"></div>
+        <div className={`relative rounded-2xl border-2 border-dashed transition-colors ${
+          isDragActive
+            ? 'border-transparent bg-gradient-to-br from-cyan-50 via-blue-50 to-purple-50'
+            : 'border-gray-200 bg-gradient-to-br from-gray-50/50 to-white'
+        }`}>
+          <input {...getInputProps()} />
+
+          <div className="p-5 md:p-8 text-center">
+            <motion.div
+              animate={{
+                scale: isDragActive ? 1.15 : 1,
+                y: isDragActive ? -8 : 0
+              }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="mb-3"
+            >
+              <div className={`mx-auto w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center transition-all ${
+                isDragActive
+                  ? 'bg-gradient-to-br from-cyan-500 to-blue-600 shadow-lg shadow-cyan-200'
+                  : 'bg-gradient-to-br from-gray-100 to-gray-200'
+              }`}>
+                <Upload className={`h-5 w-5 md:h-6 md:w-6 ${isDragActive ? 'text-white' : 'text-gray-500'}`} />
+              </div>
+            </motion.div>
+
+            <AnimatePresence>
+              {uploading || converting ? (
+                <UploadProgress progress={progress} isConverting={converting} />
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <p className="text-sm font-medium text-gray-700 mb-3">
+                    {isDragActive ? 'D\u00e9posez votre fichier' : 'Glissez un fichier ou'}
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                    <Button type="button" size="sm" className="px-5">
+                      <Upload className="h-3.5 w-3.5 mr-2" />
+                      Importer
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowManualDialog(true)}
+                      className="flex items-center gap-2 px-4"
+                    >
+                      <Edit className="h-3.5 w-3.5" />
+                      Saisie manuelle
+                    </Button>
                   </div>
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowManualDialog(true)}
-                    className="flex items-center justify-center space-x-2"
-                  >
-                    <Edit className="h-4 w-4" />
-                    <span>Saisie manuelle</span>
-                  </Button>
-                </div>
-                
-                <p className="text-xs md:text-sm text-gray-500 hidden md:block">
-                  Taille maximale : 100 MB
-                </p>
-                <p className="mt-1 text-xs text-gray-500 md:hidden">
-                  PDF, Images → PDF, Docs (max. 100MB)
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                  <p className="mt-3 text-[10px] text-gray-400">
+                    PDF, Images, Word &bull; Max 100 MB
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         <AnimatePresence>
           {error && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="mt-4 p-3 bg-red-50 rounded-md flex items-start space-x-2"
+              exit={{ opacity: 0, y: -10 }}
+              className="mx-3 mb-3 p-2.5 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2"
             >
-              <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <div className="flex-1 text-sm text-red-600">{error}</div>
-              <button
-                onClick={() => setError(null)}
-                className="flex-shrink-0 text-red-500 hover:text-red-700"
-              >
-                <X className="h-5 w-5" />
+              <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+              <span className="flex-1 text-xs text-red-600">{error}</span>
+              <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600">
+                <X className="h-3.5 w-3.5" />
               </button>
             </motion.div>
           )}
@@ -169,15 +176,29 @@ export default function FileUploader({ folderId, onSuccess }: FileUploaderProps)
               setSelectedType(null);
               setError(null);
             }}
-            onConfirm={async (processedFile, fileName, date, amount, budgetId, badgeIds, multiAssignments) => {
-              try {
-                await upload(processedFile, fileName, date, amount, budgetId, badgeIds, multiAssignments);
-                onSuccess();
-                setFileToImport(null);
-                setSelectedType(null);
-              } catch (err: any) {
-                setError(err.message);
-              }
+            onConfirm={(processedFile, fileName, date, amount, budgetId, badgeIds, multiAssignments) => {
+              // Fermer le dialogue immédiatement
+              setFileToImport(null);
+              setSelectedType(null);
+
+              // Lancer l'upload en arrière-plan
+              const uploadId = Date.now();
+              setBgUploads(prev => [...prev, { id: uploadId, name: fileName, status: 'uploading' }]);
+
+              upload(processedFile, fileName, date, amount, budgetId, badgeIds, multiAssignments)
+                .then(() => {
+                  setBgUploads(prev => prev.map(u => u.id === uploadId ? { ...u, status: 'success' } : u));
+                  onSuccess();
+                  setTimeout(() => {
+                    setBgUploads(prev => prev.filter(u => u.id !== uploadId));
+                  }, 3000);
+                })
+                .catch((err: any) => {
+                  setBgUploads(prev => prev.map(u => u.id === uploadId ? { ...u, status: 'error', message: err.message } : u));
+                  setTimeout(() => {
+                    setBgUploads(prev => prev.filter(u => u.id !== uploadId));
+                  }, 5000);
+                });
             }}
           />
         )}
@@ -186,28 +207,66 @@ export default function FileUploader({ folderId, onSuccess }: FileUploaderProps)
       <ManualInvoiceDialog
         isOpen={showManualDialog}
         onClose={() => setShowManualDialog(false)}
-        onConfirm={async (data) => {
-          try {
-            // Créer un fichier virtuel pour la facture manuelle
-            const virtualFile = new File([''], data.fileName, { type: 'application/pdf' });
-            
-            await upload(
-              virtualFile,
-              data.fileName,
-              data.date,
-              data.amount,
-              data.budgetId,
-              data.badgeIds,
-              data.multiAssignments
-            );
-            
-            onSuccess();
-            setShowManualDialog(false);
-          } catch (err: any) {
-            setError(err.message);
-          }
+        onConfirm={(data) => {
+          setShowManualDialog(false);
+
+          const virtualFile = new File([''], data.fileName, { type: 'application/pdf' });
+          const uploadId = Date.now();
+          setBgUploads(prev => [...prev, { id: uploadId, name: data.fileName, status: 'uploading' }]);
+
+          upload(virtualFile, data.fileName, data.date, data.amount, data.budgetId, data.badgeIds, data.multiAssignments)
+            .then(() => {
+              setBgUploads(prev => prev.map(u => u.id === uploadId ? { ...u, status: 'success' } : u));
+              onSuccess();
+              setTimeout(() => setBgUploads(prev => prev.filter(u => u.id !== uploadId)), 3000);
+            })
+            .catch((err: any) => {
+              setBgUploads(prev => prev.map(u => u.id === uploadId ? { ...u, status: 'error', message: err.message } : u));
+              setTimeout(() => setBgUploads(prev => prev.filter(u => u.id !== uploadId)), 5000);
+            });
         }}
       />
+
+      {/* Background upload toasts */}
+      {bgUploads.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-[90] space-y-2">
+          <AnimatePresence>
+            {bgUploads.map(u => (
+              <motion.div
+                key={u.id}
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-lg border backdrop-blur-sm max-w-xs ${
+                  u.status === 'uploading'
+                    ? 'bg-white/95 border-blue-200'
+                    : u.status === 'success'
+                      ? 'bg-green-50/95 border-green-200'
+                      : 'bg-red-50/95 border-red-200'
+                }`}
+              >
+                {u.status === 'uploading' && <Loader2 className="h-4 w-4 text-blue-500 animate-spin flex-shrink-0" />}
+                {u.status === 'success' && <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />}
+                {u.status === 'error' && <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />}
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-gray-900 truncate">{u.name}</p>
+                  <p className="text-[10px] text-gray-500">
+                    {u.status === 'uploading' && 'Import en cours...'}
+                    {u.status === 'success' && 'Import\u00e9 avec succ\u00e8s'}
+                    {u.status === 'error' && (u.message || 'Erreur')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setBgUploads(prev => prev.filter(x => x.id !== u.id))}
+                  className="p-0.5 hover:bg-gray-200/60 rounded flex-shrink-0"
+                >
+                  <X className="h-3 w-3 text-gray-400" />
+                </button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }

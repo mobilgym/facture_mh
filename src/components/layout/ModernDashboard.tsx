@@ -21,6 +21,8 @@ import FileUploader from '@/components/files/FileUploader';
 import CompactUploader from '@/components/files/CompactUploader';
 import YearlyNavigation from './YearlyNavigation';
 import RapprochementDialog from '@/components/rapprochement/RapprochementDialog';
+import StickyNote from '@/components/rapprochement/StickyNote';
+import type { BankTransaction } from '@/types/rapprochement';
 import { useFiles } from '@/hooks/useFiles';
 import { useSubmittedInvoices } from '@/hooks/useSubmittedInvoices';
 import { deleteFile } from '@/lib/services/fileService';
@@ -77,6 +79,7 @@ export default function ModernDashboard() {
   });
   const [accordionExpanded, setAccordionExpanded] = useState(false);
   const [rapprochementOpen, setRapprochementOpen] = useState(false);
+  const [pinnedTransactions, setPinnedTransactions] = useState<BankTransaction[]>([]);
   
   const toast = useToast();
   const { user } = useAuth();
@@ -653,6 +656,17 @@ export default function ModernDashboard() {
             new Date(parseInt(selectedPeriod.year), parseInt(selectedPeriod.month) - 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
           }
           onInvoiceAdded={refetchFiles}
+          pinnedTransactions={pinnedTransactions}
+          onPinnedTransactionsChange={setPinnedTransactions}
+        />
+      )}
+
+      {/* Post-it flottant - vit au niveau du dashboard, survit à la fermeture du dialogue */}
+      {pinnedTransactions.length > 0 && (
+        <StickyNote
+          transactions={pinnedTransactions}
+          onRemoveTransaction={(txId) => setPinnedTransactions(prev => prev.filter(t => t.id !== txId))}
+          onClose={() => setPinnedTransactions([])}
         />
       )}
     </div>
