@@ -87,11 +87,22 @@ export class RapprochementService {
     });
 
     if (error) {
-      throw new Error(`Erreur Edge Function: ${error.message}`);
+      // Tenter de lire le corps de la réponse pour avoir le vrai message
+      let errorMessage = error.message;
+      try {
+        if (error.context && typeof error.context.json === 'function') {
+          const errorBody = await error.context.json();
+          if (errorBody?.error) errorMessage = errorBody.error;
+        }
+      } catch {}
+      console.error('Edge Function error details:', errorMessage);
+      throw new Error(`Erreur Edge Function: ${errorMessage}`);
     }
 
     if (!data?.success) {
-      throw new Error(data?.error || 'L\'IA n\'a pas pu analyser le relevé');
+      const detail = data?.error || 'L\'IA n\'a pas pu analyser le relevé';
+      console.error('Edge Function returned error:', detail);
+      throw new Error(detail);
     }
 
     if (!data.transactions?.length) {
@@ -133,7 +144,6 @@ export class RapprochementService {
         .eq('company_id', companyId)
         .eq('year', year)
         .eq('month', month)
-        .not('amount', 'is', null)
         .order('document_date', { ascending: false });
 
       if (error) throw error;
@@ -207,6 +217,10 @@ export class RapprochementService {
     const matches: RapprochementMatch[] = [];
     const usedTransactions = new Set<string>();
     const usedInvoices = new Set<string>();
+
+    console.log(`[findMatches] ${invoices.length} factures, ${transactions.length} transactions, tolérance: ${tolerance}€`);
+    console.log(`[findMatches] Montants factures:`, invoices.map(i => ({ name: i.name?.substring(0, 30), amount: i.amount })));
+    console.log(`[findMatches] Montants transactions:`, transactions.map(t => ({ desc: t.description?.substring(0, 30), amount: t.amount, matched: t.isMatched })));
 
     // Pass 1 : correspondances exactes (difference = 0)
     for (const invoice of invoices) {

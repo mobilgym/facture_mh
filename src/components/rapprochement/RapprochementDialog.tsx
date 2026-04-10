@@ -113,7 +113,7 @@ export default function RapprochementDialog({
       rapprochement.addManualMatch(selectedInvoice, selectedTransaction);
       setSelectedTransaction(null);
       setSelectedInvoice(null);
-      setManualMatchMode(false);
+      // Rester en mode manuel pour enchaîner les liaisons
     }
   }, [selectedTransaction, selectedInvoice, rapprochement]);
 
@@ -375,7 +375,7 @@ export default function RapprochementDialog({
                 )}
 
                 {/* Unmatched Transactions */}
-                {unmatchedTransactions.length > 0 && (
+                {!manualMatchMode && unmatchedTransactions.length > 0 && (
                   <CollapsibleSection
                     title={`Transactions non rapproch\u00e9es (${unmatchedTransactions.length})`}
                     icon={<AlertTriangle className="h-4 w-4 text-amber-500" />}
@@ -587,7 +587,7 @@ export default function RapprochementDialog({
                 )}
 
                 {/* Unmatched Invoices */}
-                {unmatchedInvoices.length > 0 && (
+                {!manualMatchMode && unmatchedInvoices.length > 0 && (
                   <CollapsibleSection
                     title={`Factures sans correspondance (${unmatchedInvoices.length})`}
                     icon={<XCircle className="h-4 w-4 text-red-500" />}
@@ -643,37 +643,161 @@ export default function RapprochementDialog({
                   </CollapsibleSection>
                 )}
 
-                {/* Manual Match Floating Bar */}
-                {manualMatchMode && (selectedTransaction || selectedInvoice) && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white shadow-2xl rounded-xl px-6 py-3 border border-blue-200 flex items-center gap-4 z-[60]"
-                  >
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className={`px-2 py-1 rounded ${selectedTransaction ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'}`}>
-                        {selectedTransaction ? '1 transaction' : 'Transaction ?'}
-                      </span>
-                      <Link2 className="h-4 w-4 text-gray-400" />
-                      <span className={`px-2 py-1 rounded ${selectedInvoice ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'}`}>
-                        {selectedInvoice ? '1 facture' : 'Facture ?'}
-                      </span>
+                {/* Side-by-Side Manual Match View */}
+                {manualMatchMode && (unmatchedTransactions.length > 0 || unmatchedInvoices.length > 0) && (
+                  <div className="border border-blue-200 rounded-xl overflow-hidden">
+                    <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200">
+                      <div className="flex items-center gap-2">
+                        <Link2 className="h-4 w-4 text-blue-600" />
+                        <span className="font-medium text-sm text-gray-900">Rapprochement manuel</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Cliquez sur une transaction à gauche, puis sur la facture correspondante à droite
+                      </p>
                     </div>
-                    <button
-                      onClick={handleManualLink}
-                      disabled={!selectedTransaction || !selectedInvoice}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
-                    >
-                      Lier
-                    </button>
-                    <button
-                      onClick={() => { setManualMatchMode(false); setSelectedTransaction(null); setSelectedInvoice(null); }}
-                      className="p-2 hover:bg-gray-100 rounded-lg"
-                    >
-                      <X className="h-4 w-4 text-gray-500" />
-                    </button>
-                  </motion.div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-200" style={{ maxHeight: '400px' }}>
+                      {/* Left: Transactions */}
+                      <div className="flex flex-col" style={{ maxHeight: '400px' }}>
+                        <div className="px-3 py-2 bg-amber-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+                          <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <AlertTriangle className="h-3 w-3" />
+                            Transactions ({unmatchedTransactions.length})
+                          </span>
+                          <span className="text-xs text-amber-600 font-medium">
+                            {formatCurrency(unmatchedTransactions.reduce((s, t) => s + t.amount, 0))}
+                          </span>
+                        </div>
+                        <div className="overflow-y-auto flex-1 p-2 space-y-1">
+                          {[...unmatchedTransactions]
+                            .sort((a, b) => a.amount - b.amount)
+                            .map(tx => (
+                            <div
+                              key={tx.id}
+                              onClick={() => setSelectedTransaction(tx.id === selectedTransaction ? null : tx.id)}
+                              className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${
+                                selectedTransaction === tx.id
+                                  ? 'border-blue-400 bg-blue-50 shadow-sm'
+                                  : 'border-gray-100 hover:border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`inline-block px-1 py-0.5 rounded text-[10px] font-bold ${
+                                    tx.type === 'debit' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                                  }`}>
+                                    {tx.type === 'debit' ? 'ACH' : 'VTE'}
+                                  </span>
+                                  <p className="text-xs font-medium text-gray-900 truncate">{tx.description}</p>
+                                </div>
+                                <p className="text-[10px] text-gray-400 mt-0.5">{tx.date}</p>
+                              </div>
+                              <span className={`font-bold text-sm tabular-nums ml-2 flex-shrink-0 ${
+                                tx.type === 'credit' ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {formatCurrency(tx.amount)}
+                              </span>
+                            </div>
+                          ))}
+                          {unmatchedTransactions.length === 0 && (
+                            <p className="text-xs text-gray-400 text-center py-6">Toutes les transactions sont rapprochées</p>
+                          )}
+                        </div>
+                      </div>
+                      {/* Right: Invoices */}
+                      <div className="flex flex-col" style={{ maxHeight: '400px' }}>
+                        <div className="px-3 py-2 bg-red-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+                          <span className="text-xs font-semibold text-red-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <FileText className="h-3 w-3" />
+                            Factures ({unmatchedInvoices.length})
+                          </span>
+                          <span className="text-xs text-red-600 font-medium">
+                            {formatCurrency(unmatchedInvoices.reduce((s: number, inv: FileItem) => s + (inv.amount || 0), 0))}
+                          </span>
+                        </div>
+                        <div className="overflow-y-auto flex-1 p-2 space-y-1">
+                          {[...unmatchedInvoices]
+                            .sort((a: FileItem, b: FileItem) => (a.amount || 0) - (b.amount || 0))
+                            .map((inv: FileItem) => {
+                            const selectedTxAmount = selectedTransaction
+                              ? unmatchedTransactions.find(t => t.id === selectedTransaction)?.amount || 0
+                              : 0;
+                            const isAmountClose = selectedTransaction && inv.amount
+                              ? Math.abs(inv.amount - selectedTxAmount) <= 1
+                              : false;
+                            const isAmountExact = selectedTransaction && inv.amount
+                              ? Math.abs(inv.amount - selectedTxAmount) < 0.01
+                              : false;
+                            return (
+                              <div
+                                key={inv.id}
+                                onClick={() => setSelectedInvoice(inv.id === selectedInvoice ? null : inv.id)}
+                                className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${
+                                  selectedInvoice === inv.id
+                                    ? 'border-blue-400 bg-blue-50 shadow-sm'
+                                    : isAmountExact
+                                      ? 'border-green-400 bg-green-50 shadow-sm ring-2 ring-green-200'
+                                      : isAmountClose
+                                        ? 'border-green-300 bg-green-50/50 ring-1 ring-green-100'
+                                        : 'border-gray-100 hover:border-gray-300 hover:bg-gray-50'
+                                }`}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-medium text-gray-900 truncate">{inv.name}</p>
+                                  <p className="text-[10px] text-gray-400 mt-0.5">{inv.document_date}</p>
+                                </div>
+                                <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
+                                  <span className={`font-bold text-sm tabular-nums ${
+                                    isAmountExact ? 'text-green-600' : isAmountClose ? 'text-green-600' : 'text-gray-900'
+                                  }`}>
+                                    {formatCurrency(inv.amount || 0)}
+                                  </span>
+                                  {isAmountExact && (
+                                    <span className="text-[10px] bg-green-200 text-green-800 px-1 py-0.5 rounded font-bold">=</span>
+                                  )}
+                                  {isAmountClose && !isAmountExact && (
+                                    <span className="text-[10px] bg-green-100 text-green-700 px-1 py-0.5 rounded font-medium">≈</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {unmatchedInvoices.length === 0 && (
+                            <p className="text-xs text-gray-400 text-center py-6">Toutes les factures sont rapprochées</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Action bar inside the side-by-side view */}
+                    {(selectedTransaction || selectedInvoice) && (
+                      <div className="px-4 py-3 bg-gray-50 border-t border-blue-200 flex items-center justify-between">
+                        <div className="flex items-center gap-3 text-sm">
+                          <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${selectedTransaction ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'}`}>
+                            {selectedTransaction
+                              ? `${unmatchedTransactions.find(t => t.id === selectedTransaction)?.description?.substring(0, 25) || 'Transaction'}... (${formatCurrency(unmatchedTransactions.find(t => t.id === selectedTransaction)?.amount || 0)})`
+                              : 'Sélectionnez une transaction ←'
+                            }
+                          </span>
+                          <Link2 className="h-4 w-4 text-gray-400" />
+                          <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${selectedInvoice ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'}`}>
+                            {selectedInvoice
+                              ? `${(unmatchedInvoices as FileItem[]).find(i => i.id === selectedInvoice)?.name?.substring(0, 25) || 'Facture'}... (${formatCurrency((unmatchedInvoices as FileItem[]).find(i => i.id === selectedInvoice)?.amount || 0)})`
+                              : '→ Sélectionnez une facture'
+                            }
+                          </span>
+                        </div>
+                        <button
+                          onClick={handleManualLink}
+                          disabled={!selectedTransaction || !selectedInvoice}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors flex items-center gap-2"
+                        >
+                          <Link2 className="h-3.5 w-3.5" />
+                          Lier
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
+
               </div>
             )}
           </div>

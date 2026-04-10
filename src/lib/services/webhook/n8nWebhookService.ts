@@ -1,6 +1,15 @@
 import { TemporaryFileStorage } from './temporaryFileStorage';
 import { WebhookConfigService, WebhookConfiguration } from './webhookConfigService';
 
+export interface WebhookClientData {
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  siret?: string;
+  vatNumber?: string;
+}
+
 export interface WebhookExtractedData {
   fileName: string | null;
   amount: number | null;
@@ -91,9 +100,9 @@ export class N8nWebhookService {
   }
 
   // Envoyer un fichier au webhook N8n pour extraction
-  async extractDataFromFile(file: File, documentType: 'achat' | 'vente'): Promise<WebhookExtractedData> {
+  async extractDataFromFile(file: File, documentType: 'achat' | 'vente', clientData?: WebhookClientData): Promise<WebhookExtractedData> {
     console.log('🔗 [N8n Webhook] Configuration actuelle:', this.config);
-    
+
     if (!this.config.enabled) {
       console.error('❌ [N8n Webhook] Webhook désactivé');
       throw new Error('Le webhook n\'est pas activé. Activez-le dans la configuration.');
@@ -111,28 +120,42 @@ export class N8nWebhookService {
       console.log('🔗 [N8n Webhook] Headers:', this.config.headers);
       console.log('🔗 [N8n Webhook] Fichier:', file.name, '(' + file.size + ' bytes)');
       console.log('🔗 [N8n Webhook] Type de document:', documentType);
-      
-      // Créer une URL temporaire pour le fichier
-      console.log('🔗 [N8n Webhook] Création d\'une URL temporaire pour le fichier...');
-      const fileUrl = await this.createTemporaryFileUrl(file);
-      console.log('🔗 [N8n Webhook] URL temporaire créée:', fileUrl);
-      
-      // Préparer les données à envoyer avec l'URL du fichier
-      const payload = {
+      if (clientData) {
+        console.log('🔗 [N8n Webhook] Données client:', clientData);
+      }
+
+      // Convertir le fichier PDF en base64
+      console.log('🔗 [N8n Webhook] Conversion du fichier en base64...');
+      const fileBase64 = await this.fileToBase64(file);
+      console.log('🔗 [N8n Webhook] Fichier converti en base64, taille:', fileBase64.length, 'caractères');
+
+      // Préparer les données à envoyer avec le PDF en base64 et les données client
+      const payload: Record<string, any> = {
         fileName: file.name,
         fileSize: file.size,
         fileType: file.type,
-        fileUrl: fileUrl, // URL pour télécharger le fichier
+        fileBase64: fileBase64,
         documentType: documentType,
-        timestamp: new Date().toISOString(),
-        downloadExpiry: new Date(Date.now() + 30 * 60 * 1000).toISOString() // Expire dans 30 minutes
+        timestamp: new Date().toISOString()
       };
 
-      console.log('🔗 [N8n Webhook] Payload avec URL préparé:', payload);
+      // Ajouter les données client parsées si disponibles
+      if (clientData) {
+        payload.client = {
+          name: clientData.name,
+          ...(clientData.email && { email: clientData.email }),
+          ...(clientData.phone && { phone: clientData.phone }),
+          ...(clientData.address && { address: clientData.address }),
+          ...(clientData.siret && { siret: clientData.siret }),
+          ...(clientData.vatNumber && { vatNumber: clientData.vatNumber })
+        };
+      }
+
+      console.log('🔗 [N8n Webhook] Payload préparé (avec PDF base64 et client)');
 
       console.log('🔗 [N8n Webhook] Envoi de la requête...');
 
-      // Faire la requête vers N8n avec l'URL du fichier
+      // Faire la requête vers N8n avec le PDF et les données client
       const response = await fetch(this.config.url, {
         method: this.config.method,
         headers: {
@@ -156,7 +179,7 @@ export class N8nWebhookService {
 
     } catch (error) {
       console.error('❌ [N8n Webhook] Erreur lors de l\'extraction:', error);
-      
+
       return {
         fileName: null,
         amount: null,
@@ -164,26 +187,6 @@ export class N8nWebhookService {
         success: false,
         message: error instanceof Error ? error.message : 'Erreur inconnue'
       };
-    }
-  }
-
-  // Créer une URL temporaire pour le fichier
-  private async createTemporaryFileUrl(file: File): Promise<string> {
-    try {
-      console.log('🔗 [N8n Webhook] Upload du fichier vers un service temporaire...');
-      
-      // Utiliser le service de stockage temporaire
-      const uploadResult = await TemporaryFileStorage.uploadWithFallback(file);
-      
-      console.log('🔗 [N8n Webhook] Fichier uploadé avec succès');
-      console.log('🔗 [N8n Webhook] URL:', uploadResult.url);
-      console.log('🔗 [N8n Webhook] Expire le:', uploadResult.expiresAt);
-      
-      return uploadResult.url;
-      
-    } catch (error) {
-      console.error('❌ [N8n Webhook] Erreur création URL temporaire:', error);
-      throw new Error('Impossible de créer une URL pour le fichier');
     }
   }
 

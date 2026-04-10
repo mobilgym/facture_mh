@@ -163,7 +163,7 @@ Réponds UNIQUEMENT avec un JSON valide, sans markdown, sans backticks, sous cet
       JSON.stringify({ success: false, error: error.message }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 200,
       }
     )
   }

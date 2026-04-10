@@ -15,11 +15,13 @@ import { BudgetBubbleSelector } from '@/components/budgets/BudgetBubbleSelector'
 import { BadgeBubbleSelector } from '@/components/badges/BadgeBubbleSelector';
 import type { Badge } from '@/types/badge';
 import { enhancedDocumentAnalyzer, ExtractedDocumentData } from '@/lib/services/document/enhancedDocumentAnalyzer';
-import { createN8nWebhookService } from '@/lib/services/webhook/n8nWebhookService';
+import { N8nWebhookService, createN8nWebhookService, WebhookClientData } from '@/lib/services/webhook/n8nWebhookService';
 import { WebhookConfiguration } from '@/lib/services/webhook/webhookConfigService';
 import WebhookConfig from '@/components/webhook/WebhookConfig';
 import MultiAssignmentManager, { AssignmentItem } from './MultiAssignmentManager';
 import { useFilePreprocessor } from '@/hooks/useFilePreprocessor';
+import { useClients } from '@/hooks/useClients';
+import type { Client } from '@/types/client';
 
 interface FileImportDialogProps {
   file: File;
@@ -90,7 +92,34 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
   const { selectedCompany, setSelectedCompany } = useCompany();
   const { budgets, loading: budgetsLoading } = useBudgets();
   const { badges: availableBadges, loading: badgesLoading } = useBudgetBadges(budgetId || undefined);
+  const { clients } = useClients();
+  const [matchedClient, setMatchedClient] = useState<Client | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Rechercher un client correspondant par nom (recherche partielle insensible à la casse)
+  const findMatchingClient = (companyName: string): Client | null => {
+    if (!companyName || !clients || clients.length === 0) return null;
+    const normalized = companyName.toLowerCase().trim();
+    // Recherche exacte d'abord
+    const exactMatch = clients.find(c => c.name.toLowerCase().trim() === normalized);
+    if (exactMatch) return exactMatch;
+    // Recherche partielle
+    const partialMatch = clients.find(c =>
+      c.name.toLowerCase().includes(normalized) ||
+      normalized.includes(c.name.toLowerCase())
+    );
+    return partialMatch || null;
+  };
+
+  // Convertir un Client en WebhookClientData
+  const clientToWebhookData = (client: Client): WebhookClientData => ({
+    name: client.name,
+    ...(client.email && { email: client.email }),
+    ...(client.phone && { phone: client.phone }),
+    ...(client.address && { address: client.address }),
+    ...(client.siret && { siret: client.siret }),
+    ...(client.vatNumber && { vatNumber: client.vatNumber })
+  });
 
   // Fonction d'extraction via webhook N8n
   const extractDataWithWebhook = async () => {
@@ -105,26 +134,29 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
       // Créer le service webhook avec l'ID utilisateur
       setExtractionProgress(20);
       setExtractionMessage('Chargement de la configuration globale...');
-      
+
       const webhookService = await createN8nWebhookService(user.id);
-      
+
       setExtractionProgress(30);
-      setExtractionMessage('Conversion du fichier...');
-      
+      setExtractionMessage('Conversion du fichier en PDF base64...');
+
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       setExtractionProgress(50);
-      setExtractionMessage('Envoi vers N8n...');
-      
-      const results = await webhookService.extractDataFromFile(fileToUse, documentType);
-      
+      setExtractionMessage('Envoi du PDF et des données vers N8n...');
+
+      // Préparer les données client si un client est déjà matché
+      const clientData = matchedClient ? clientToWebhookData(matchedClient) : undefined;
+
+      const results = await webhookService.extractDataFromFile(fileToUse, documentType, clientData);
+
       setExtractionProgress(90);
       setExtractionMessage('Traitement de la réponse...');
-      
+
       if (results.success) {
         // Convertir les résultats webhook vers le format ExtractedDocumentData
         const convertedResults: ExtractedDocumentData = {
-          companyName: results.fileName || undefined, // Sera déduit du fileName
+          companyName: results.fileName || undefined,
           date: results.date ? new Date(results.date) : undefined,
           amount: results.amount || undefined,
           fileName: results.fileName || `${documentType === 'achat' ? 'Ach' : 'Vte'}_document.pdf`,
@@ -142,6 +174,20 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
         if (results.fileName) {
           setFileName(results.fileName);
           console.log('✅ Webhook - Nom de fichier pré-rempli:', results.fileName);
+
+          // Tenter de matcher un client à partir du nom extrait
+          const extractedCompanyName = results.fileName
+            .replace(/^(Ach_|Vte_)/, '')
+            .replace(/_\d{8}\.pdf$/, '')
+            .replace(/_/g, ' ')
+            .trim();
+          if (extractedCompanyName) {
+            const found = findMatchingClient(extractedCompanyName);
+            if (found) {
+              setMatchedClient(found);
+              console.log('✅ Webhook - Client matché:', found.name, found.email);
+            }
+          }
         }
 
         if (results.date) {
@@ -206,10 +252,9 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
   // Charger la configuration webhook depuis Supabase
   const loadWebhookConfig = async () => {
     try {
-      const webhookService = await createN8nWebhookService(user?.id);
-      const isEnabled = !!webhookService; // Vérification basique
-      setWebhookEnabled(isEnabled);
-      console.log('🔗 [FileImportDialog] Configuration webhook globale chargée:', isEnabled);
+      const config = await N8nWebhookService.loadConfig();
+      setWebhookEnabled(config.enabled);
+      console.log('🔗 [FileImportDialog] Configuration webhook globale chargée, activé:', config.enabled);
     } catch (error) {
       console.error('❌ [FileImportDialog] Erreur lors du chargement de la config webhook:', error);
       setWebhookEnabled(false);
@@ -278,6 +323,7 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
       setRetentionPercentage(100);
       setTotalAmount(0);
       setShowWebhookConfig(false);
+      setMatchedClient(null);
     }
   }, [isOpen]);
 
@@ -643,8 +689,26 @@ export default function FileImportDialog({ file, documentType, isOpen, onClose, 
                         </span>
                       </div>
                     )}
+
+                    {/* Client matché */}
+                    {matchedClient && (
+                      <div className="mt-2 p-2 bg-purple-50 rounded border border-purple-200">
+                        <p className="text-xs font-medium text-purple-700 mb-1">
+                          <Building2 className="h-3 w-3 inline mr-1" />
+                          Client identifié et envoyé via webhook :
+                        </p>
+                        <div className="space-y-0.5 text-xs text-purple-600">
+                          <p><strong>Nom:</strong> {matchedClient.name}</p>
+                          {matchedClient.email && <p><strong>Email:</strong> {matchedClient.email}</p>}
+                          {matchedClient.phone && <p><strong>Tél:</strong> {matchedClient.phone}</p>}
+                          {matchedClient.address && <p><strong>Adresse:</strong> {matchedClient.address}</p>}
+                          {matchedClient.siret && <p><strong>SIRET:</strong> {matchedClient.siret}</p>}
+                          {matchedClient.vatNumber && <p><strong>TVA:</strong> {matchedClient.vatNumber}</p>}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  
+
                   <div className="mt-2 pt-2 border-t border-green-200">
                     <p className="text-xs text-green-600 font-medium">
                       💡 Champs automatiquement pré-remplis - Modifiez si nécessaire
